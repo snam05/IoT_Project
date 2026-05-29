@@ -1,0 +1,116 @@
+/* ─── Google Fonts ─────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
+
+/* ─── Tailwind Directives ───────────────────────────────────── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base Styles ───────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #f9f9fb;
+    color: #1a1c1d;
+    font-family: 'Inter', sans-serif;
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    background-color: #000000;
+    color: #ffffff;
+  }
+}
+
+/* ─── Material Symbols ──────────────────────────────────────── */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ─── iOS-style List Groups ─────────────────────────────────── */
+.ios-list-group {
+  background-color: #ffffff;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.ios-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid #e2e2e4;
+}
+
+.ios-list-item:last-child {
+  border-bottom: none;
+}
+
+.ios-input {
+  text-align: right;
+  border: none;
+  background: transparent;
+  color: #8E8E93;
+  outline: none;
+  flex: 1;
+  margin-left: 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+}
+
+.ios-input:focus {
+  color: #1a1c1d;
+}
+
+/* ─── QR Scanner Animations ─────────────────────────────────── */
+@keyframes scan {
+  0%   { transform: translateY(-100%); }
+  50%  { transform: translateY(100%); }
+  100% { transform: translateY(-100%); }
+}
+
+.scan-line {
+  animation: scan 3s linear infinite;
+}
+
+/* ─── Glassmorphism utility ──────────────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* ─── Scrollbar (minimal) ────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cfc4c5;
+  border-radius: 999px;
+}
