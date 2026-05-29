@@ -2,11 +2,9 @@
  * Prisma Seed — creates default admin user + sample lockers
  * Run: npx prisma db seed
  */
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 function generateTotpSecret() {
   return crypto.randomBytes(20).toString('base64');
