@@ -1,52 +1,68 @@
+import prisma from '../../lib/prisma.js';
+import { requireAuth } from '../../lib/auth.js';
+
 /**
- * GET /api/lockers
- * Returns the list of lockers and their current status.
- * Supports query params: ?zone=A&status=available
- * When deploying the real API, connect to the database and MQTT broker here.
+ * GET /api/lockers?zone=A&status=AVAILABLE&page=1&limit=50
  */
-export default function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { zone, status } = req.query;
+  const payload = requireAuth(req, res);
+  if (!payload) return;
 
-  // Mock locker data
-  const allLockers = [
-    // Zone A - Ground Floor
-    { id: 'A-001', zone: 'A', floor: 0, row: 1, col: 1, status: 'in_use', userId: 'u-123', lockedAt: '2024-01-15T08:30:00Z' },
-    { id: 'A-002', zone: 'A', floor: 0, row: 1, col: 2, status: 'in_use', userId: 'u-456', lockedAt: '2024-01-15T09:00:00Z' },
-    { id: 'A-003', zone: 'A', floor: 0, row: 1, col: 3, status: 'available', userId: null, lockedAt: null },
-    { id: 'A-004', zone: 'A', floor: 0, row: 1, col: 4, status: 'in_use', userId: 'u-789', lockedAt: '2024-01-15T07:45:00Z' },
-    { id: 'A-005', zone: 'A', floor: 0, row: 1, col: 5, status: 'in_use', userId: 'u-321', lockedAt: '2024-01-15T10:15:00Z' },
-    { id: 'A-006', zone: 'A', floor: 0, row: 1, col: 6, status: 'maintenance', userId: null, lockedAt: null },
-    { id: 'A-007', zone: 'A', floor: 0, row: 2, col: 1, status: 'available', userId: null, lockedAt: null },
-    { id: 'A-008', zone: 'A', floor: 0, row: 2, col: 2, status: 'available', userId: null, lockedAt: null },
-    { id: 'A-009', zone: 'A', floor: 0, row: 2, col: 3, status: 'in_use', userId: 'u-654', lockedAt: '2024-01-15T11:00:00Z' },
-    { id: 'A-010', zone: 'A', floor: 0, row: 2, col: 4, status: 'in_use', userId: 'u-987', lockedAt: '2024-01-15T08:00:00Z' },
-    { id: 'A-011', zone: 'A', floor: 0, row: 2, col: 5, status: 'in_use', userId: 'u-111', lockedAt: '2024-01-15T09:30:00Z' },
-    { id: 'A-012', zone: 'A', floor: 0, row: 2, col: 6, status: 'in_use', userId: 'u-222', lockedAt: '2024-01-15T10:45:00Z' },
-    { id: 'A-013', zone: 'A', floor: 0, row: 3, col: 1, status: 'in_use', userId: 'u-333', lockedAt: '2024-01-15T07:30:00Z' },
-    { id: 'A-014', zone: 'A', floor: 0, row: 3, col: 2, status: 'available', userId: null, lockedAt: null },
-    { id: 'A-015', zone: 'A', floor: 0, row: 3, col: 3, status: 'available', userId: null, lockedAt: null },
-    { id: 'A-016', zone: 'A', floor: 0, row: 3, col: 4, status: 'maintenance', userId: null, lockedAt: null },
-    { id: 'A-017', zone: 'A', floor: 0, row: 3, col: 5, status: 'in_use', userId: 'u-444', lockedAt: '2024-01-15T11:30:00Z' },
-    { id: 'A-018', zone: 'A', floor: 0, row: 3, col: 6, status: 'in_use', userId: 'u-555', lockedAt: '2024-01-15T08:15:00Z' },
-  ];
+  const { zone, status, page = '1', limit = '50' } = req.query;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
 
-  if (req.method === 'GET') {
-    let filtered = allLockers;
-    if (zone) filtered = filtered.filter((l) => l.zone === zone.toUpperCase());
-    if (status) filtered = filtered.filter((l) => l.status === status);
-    return res.status(200).json({ lockers: filtered, total: filtered.length });
+  const where = {};
+  if (zone) where.zone = zone.toUpperCase();
+  if (status) where.status = status.toUpperCase();
+
+  try {
+    const [lockers, total] = await Promise.all([
+      prisma.locker.findMany({
+        where,
+        skip,
+        take: parseInt(limit),
+        orderBy: [{ zone: 'asc' }, { row: 'asc' }, { col: 'asc' }],
+        select: {
+          lockerId: true,
+          zone: true,
+          floor: true,
+          row: true,
+          col: true,
+          status: true,
+          lockedAt: true,
+          description: true,
+          user: { select: { id: true, name: true, username: true } },
+        },
+      }),
+      prisma.locker.count({ where }),
+    ]);
+
+    // Stats summary
+    const stats = await prisma.locker.groupBy({
+      by: ['status'],
+      _count: { status: true },
+    });
+    const summary = Object.fromEntries(stats.map((s) => [s.status, s._count.status]));
+
+    return res.status(200).json({
+      lockers,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / parseInt(limit)),
+      summary: {
+        AVAILABLE: summary.AVAILABLE || 0,
+        IN_USE: summary.IN_USE || 0,
+        MAINTENANCE: summary.MAINTENANCE || 0,
+      },
+    });
+  } catch (err) {
+    console.error('[lockers]', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
-
-  if (req.method === 'PUT') {
-    // TODO: implement lock/unlock action
-    // req.body = { lockerId, action: 'lock' | 'unlock' }
-    return res.status(200).json({ success: true, message: 'Action queued' });
-  }
-
-  return res.status(405).json({ error: 'Method not allowed' });
 }

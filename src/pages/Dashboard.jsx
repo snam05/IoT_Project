@@ -1,217 +1,436 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import TopNavBar from '../components/TopNavBar';
 
-// Locker color mappings
-const LOCKER_COLORS = {
-  available: '#E8F5E9',   // Green tint
-  in_use: '#0058bc',      // Secondary blue
-  maintenance: '#ba1a1a', // Error red
-};
-
-// Sample locker grid data (6 cols x 3 rows)
-const SAMPLE_LOCKER_GRID = [
-  'in_use', 'in_use', 'available', 'in_use', 'in_use', 'maintenance',
-  'available', 'available', 'in_use', 'in_use', 'in_use', 'in_use',
-  'in_use', 'available', 'available', 'maintenance', 'in_use', 'in_use',
+const TABS = [
+  { key: 'overview', icon: 'dashboard', label: 'Overview' },
+  { key: 'lockers', icon: 'grid_view', label: 'Lockers' },
+  { key: 'users', icon: 'group', label: 'Users' },
+  { key: 'unlock-logs', icon: 'key', label: 'Unlock Logs' },
+  { key: 'system-logs', icon: 'history', label: 'System Logs' },
 ];
 
-function StatCard({ label, icon, value, sub, iconColor = 'text-outline' }) {
+const STATUS_COLOR = { AVAILABLE: '#E8F5E9', IN_USE: '#d8e2ff', MAINTENANCE: '#ffdad6' };
+const STATUS_TEXT = { AVAILABLE: 'text-green-700', IN_USE: 'text-blue-700', MAINTENANCE: 'text-red-700' };
+
+function Badge({ status }) {
   return (
-    <div className="bg-surface-container-lowest rounded-xl p-8 flex flex-col justify-between border border-outline-variant/10 relative overflow-hidden group">
-      <div className="absolute -right-4 -top-4 w-24 h-24 bg-surface-container-low rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500" />
-      <div className="flex items-center justify-between mb-8 relative z-10">
-        <span className="text-label-md text-on-surface-variant">{label}</span>
-        <span className={`material-symbols-outlined ${iconColor}`}>{icon}</span>
-      </div>
-      <div className="relative z-10">
-        <span className="text-display-lg text-primary block">{value}</span>
-        <span className="text-body-md text-secondary mt-1 flex items-center gap-1">{sub}</span>
-      </div>
-    </div>
+    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_TEXT[status]}`}
+      style={{ backgroundColor: STATUS_COLOR[status] }}>
+      {status}
+    </span>
   );
 }
 
-function StatusCard({ color, iconName, statusLabel, count }) {
-  return (
-    <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/10 flex items-center justify-between hover:bg-surface-bright transition-colors cursor-pointer">
-      <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: color }}>
-          <span
-            className="material-symbols-outlined"
-            style={{ fontVariationSettings: "'FILL' 1", fontSize: '20px' }}
-          >
-            {iconName}
-          </span>
-        </div>
-        <div>
-          <p className="text-label-md text-on-surface-variant mb-1">{statusLabel}</p>
-          <p className="text-headline-xl text-primary">{count}</p>
-        </div>
-      </div>
-      <span className="material-symbols-outlined text-outline-variant">chevron_right</span>
-    </div>
-  );
+function Spinner() {
+  return <div className="w-5 h-5 border-2 border-outline-variant border-t-secondary rounded-full animate-spin" />;
 }
 
-export default function Dashboard() {
+// ── Overview Tab ──────────────────────────────────────────────
+function OverviewTab() {
   const [stats, setStats] = useState(null);
+  const [lockers, setLockers] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/stats', { credentials: 'include' }).then(r => r.json()).then(setStats).catch(() => {});
+    fetch('/api/lockers?limit=18', { credentials: 'include' }).then(r => r.json()).then(d => setLockers(d.lockers || [])).catch(() => {});
+  }, []);
+
+  const statCards = stats ? [
+    { label: 'Total Lockers', value: stats.total, icon: 'grid_view', sub: stats.growth },
+    { label: 'In Use', value: stats.inUse, icon: 'lock', sub: stats.capacity },
+    { label: 'Available', value: stats.available, icon: 'lock_open', sub: 'Ready', color: 'text-green-600' },
+    { label: 'Maintenance', value: stats.maintenance, icon: 'build', sub: 'Needs attention', color: 'text-red-500' },
+  ] : [];
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {!stats ? Array.from({length:4}).map((_,i)=><div key={i} className="bg-surface-container-lowest rounded-xl p-6 h-32 animate-pulse border border-outline-variant/10"/>) :
+          statCards.map(s => (
+            <div key={s.label} className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/10 hover:shadow-card transition-shadow">
+              <div className="flex justify-between mb-4">
+                <span className="text-label-md text-on-surface-variant">{s.label}</span>
+                <span className="material-symbols-outlined text-outline" style={{fontSize:'20px'}}>{s.icon}</span>
+              </div>
+              <div className={`text-display-lg font-bold text-primary ${s.color||''}`}>{s.value}</div>
+              <div className="text-body-md text-on-surface-variant mt-1">{s.sub}</div>
+            </div>
+          ))
+        }
+      </div>
+      <div>
+        <h2 className="text-headline-md text-primary mb-4">Locker Map</h2>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6">
+          <div className="grid grid-cols-6 gap-2 max-w-md">
+            {lockers.map(l => (
+              <div key={l.lockerId} title={`${l.lockerId} — ${l.status}`}
+                className="aspect-square rounded-lg cursor-pointer hover:scale-110 transition-transform duration-200 flex items-center justify-center"
+                style={{ backgroundColor: STATUS_COLOR[l.status] || '#f0f0f0' }}>
+                <span className="text-xs font-bold opacity-60">{l.col}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-6 mt-4">
+            {Object.entries(STATUS_COLOR).map(([s, c]) => (
+              <div key={s} className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-sm" style={{backgroundColor:c}}/>
+                <span className="text-label-md text-on-surface-variant">{s}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Lockers Tab ───────────────────────────────────────────────
+function LockersTab() {
+  const [data, setData] = useState({ lockers: [], total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState({ status: '', zone: '' });
+  const [actionLoading, setActionLoading] = useState(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    const q = new URLSearchParams({ limit: '50', ...Object.fromEntries(Object.entries(filter).filter(([,v])=>v)) });
+    fetch(`/api/admin/lockers?${q}`, { credentials: 'include' })
+      .then(r => r.json()).then(setData).catch(()=>{}).finally(()=>setLoading(false));
+  }, [filter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const updateStatus = async (lockerId, status, action) => {
+    setActionLoading(lockerId);
+    await fetch('/api/admin/lockers', {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lockerId, status, action }),
+    });
+    load();
+    setActionLoading(null);
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-3 mb-6">
+        <select value={filter.status} onChange={e=>setFilter(f=>({...f,status:e.target.value}))}
+          className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
+          <option value="">All Status</option>
+          <option>AVAILABLE</option><option>IN_USE</option><option>MAINTENANCE</option>
+        </select>
+        <select value={filter.zone} onChange={e=>setFilter(f=>({...f,zone:e.target.value}))}
+          className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
+          <option value="">All Zones</option>
+          <option>A</option><option>B</option><option>C</option>
+        </select>
+        <button onClick={load} className="px-4 py-2 rounded-xl bg-secondary text-white text-label-md font-semibold hover:opacity-90 active:scale-95 transition-all">Refresh</button>
+      </div>
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-container-low border-b border-outline-variant/10">
+              <tr>
+                {['Locker ID','Zone','Floor','Status','Assigned User','Locked At','Actions'].map(h=>(
+                  <th key={h} className="text-left px-4 py-3 text-label-md text-on-surface-variant font-semibold">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/10">
+              {loading ? (
+                <tr><td colSpan={7} className="text-center py-8"><Spinner/></td></tr>
+              ) : data.lockers.map(l => (
+                <tr key={l.lockerId} className="hover:bg-surface-container-low transition-colors">
+                  <td className="px-4 py-3 font-mono font-semibold text-primary">{l.lockerId}</td>
+                  <td className="px-4 py-3 text-on-surface-variant">{l.zone}</td>
+                  <td className="px-4 py-3 text-on-surface-variant">{l.floor}</td>
+                  <td className="px-4 py-3"><Badge status={l.status}/></td>
+                  <td className="px-4 py-3 text-on-surface-variant">{l.user?.name || '—'}</td>
+                  <td className="px-4 py-3 text-on-surface-variant text-xs">{l.lockedAt ? new Date(l.lockedAt).toLocaleString() : '—'}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      {l.status !== 'AVAILABLE' && (
+                        <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', 'unlock')}
+                          disabled={actionLoading===l.lockerId}
+                          className="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50">
+                          Unlock
+                        </button>
+                      )}
+                      {l.status === 'AVAILABLE' && (
+                        <button onClick={() => updateStatus(l.lockerId, 'MAINTENANCE', null)}
+                          disabled={actionLoading===l.lockerId}
+                          className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50">
+                          Maintenance
+                        </button>
+                      )}
+                      {l.status === 'MAINTENANCE' && (
+                        <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', null)}
+                          disabled={actionLoading===l.lockerId}
+                          className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 active:scale-95 transition-all disabled:opacity-50">
+                          Restore
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-4 py-3 border-t border-outline-variant/10 text-label-md text-on-surface-variant">
+          Total: {data.total} lockers
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Users Tab ─────────────────────────────────────────────────
+function UsersTab() {
+  const [data, setData] = useState({ users: [], total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ username:'', email:'', name:'', password:'', role:'USER' });
+  const [creating, setCreating] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const load = useCallback(() => {
+    setLoading(true);
+    const q = new URLSearchParams({ limit: '50', ...(search ? {search} : {}) });
+    fetch(`/api/admin/users?${q}`, { credentials: 'include' })
+      .then(r=>r.json()).then(setData).catch(()=>{}).finally(()=>setLoading(false));
+  }, [search]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const toggleActive = async (id, isActive) => {
+    await fetch(`/api/admin/users/${id}`, {
+      method:'PUT', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ isActive: !isActive }),
+    });
+    load();
+  };
+
+  const deleteUser = async (id, name) => {
+    if (!confirm(`Delete user "${name}"?`)) return;
+    await fetch(`/api/admin/users/${id}`, { method:'DELETE', credentials:'include' });
+    load();
+  };
+
+  const createUser = async (e) => {
+    e.preventDefault();
+    setCreating(true); setMsg('');
+    try {
+      const res = await fetch('/api/admin/users', {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(form),
+      });
+      const d = await res.json();
+      if (res.ok) { setMsg('User created!'); setShowCreate(false); setForm({username:'',email:'',name:'',password:'',role:'USER'}); load(); }
+      else setMsg(d.error);
+    } finally { setCreating(false); }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-3 mb-6 items-center">
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search users..."
+          className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary flex-1 min-w-48"/>
+        <button onClick={() => setShowCreate(s=>!s)}
+          className="flex items-center gap-2 px-5 py-2 rounded-xl bg-primary text-on-primary text-label-md font-semibold hover:opacity-90 active:scale-95 transition-all">
+          <span className="material-symbols-outlined" style={{fontSize:'18px'}}>person_add</span>
+          Add User
+        </button>
+      </div>
+
+      {showCreate && (
+        <form onSubmit={createUser} className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 mb-6 grid grid-cols-2 gap-4">
+          <h3 className="col-span-2 text-headline-md text-primary font-semibold">Create New User</h3>
+          {[['username','Username','text'],['email','Email','email'],['name','Full Name','text'],['password','Password','password']].map(([k,l,t])=>(
+            <div key={k}>
+              <label className="text-label-md text-on-surface-variant mb-1 block">{l}</label>
+              <input type={t} value={form[k]} required onChange={e=>setForm(f=>({...f,[k]:e.target.value}))}
+                className="w-full px-3 py-2.5 rounded-xl border border-outline-variant bg-background text-body-md focus:outline-none focus:ring-2 focus:ring-secondary"/>
+            </div>
+          ))}
+          <div>
+            <label className="text-label-md text-on-surface-variant mb-1 block">Role</label>
+            <select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}
+              className="w-full px-3 py-2.5 rounded-xl border border-outline-variant bg-background text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
+              <option>USER</option><option>ADMIN</option>
+            </select>
+          </div>
+          {msg && <p className="col-span-2 text-body-md text-error">{msg}</p>}
+          <div className="col-span-2 flex gap-3">
+            <button type="submit" disabled={creating}
+              className="px-6 py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-semibold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">
+              {creating ? 'Creating...' : 'Create User'}
+            </button>
+            <button type="button" onClick={()=>setShowCreate(false)}
+              className="px-6 py-2.5 rounded-xl border border-outline-variant text-on-surface text-label-md hover:bg-surface-container-low transition-all">
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-container-low border-b border-outline-variant/10">
+              <tr>
+                {['Name','Username','Email','Role','Status','Created','Actions'].map(h=>(
+                  <th key={h} className="text-left px-4 py-3 text-label-md text-on-surface-variant font-semibold">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/10">
+              {loading ? <tr><td colSpan={7} className="text-center py-8"><Spinner/></td></tr> :
+                data.users.map(u => (
+                  <tr key={u.id} className="hover:bg-surface-container-low transition-colors">
+                    <td className="px-4 py-3 font-semibold text-primary">{u.name}</td>
+                    <td className="px-4 py-3 font-mono text-on-surface-variant">{u.username}</td>
+                    <td className="px-4 py-3 text-on-surface-variant">{u.email}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${u.role==='ADMIN'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'}`}>{u.role}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${u.isActive?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>
+                        {u.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-on-surface-variant text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button onClick={()=>toggleActive(u.id, u.isActive)}
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold active:scale-95 transition-all ${u.isActive?'bg-yellow-100 text-yellow-700 hover:bg-yellow-200':'bg-green-100 text-green-700 hover:bg-green-200'}`}>
+                          {u.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button onClick={()=>deleteUser(u.id, u.name)}
+                          className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all">
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+        <div className="px-4 py-3 border-t border-outline-variant/10 text-label-md text-on-surface-variant">Total: {data.total} users</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Generic Log Table ─────────────────────────────────────────
+function LogTable({ endpoint, columns, rowFn }) {
+  const [data, setData] = useState({ logs: [], total: 0, page: 1, pages: 1 });
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/stats')
-      .then((r) => r.json())
-      .then((data) => setStats(data))
-      .catch(() => {
-        // Fallback mock data when API not available
-        setStats({
-          total: 245,
-          inUse: 182,
-          maintenance: 3,
-          available: 60,
-          growth: '+12 this month',
-          capacity: '74% capacity',
-        });
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    fetch(`${endpoint}?page=${page}&limit=20`, { credentials: 'include' })
+      .then(r=>r.json()).then(setData).catch(()=>{}).finally(()=>setLoading(false));
+  }, [endpoint, page]);
+
+  return (
+    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-container-low border-b border-outline-variant/10">
+            <tr>{columns.map(c=><th key={c} className="text-left px-4 py-3 text-label-md text-on-surface-variant font-semibold">{c}</th>)}</tr>
+          </thead>
+          <tbody className="divide-y divide-outline-variant/10">
+            {loading ? <tr><td colSpan={columns.length} className="text-center py-8"><Spinner/></td></tr>
+              : data.logs.map((log, i) => <tr key={log.id||i} className="hover:bg-surface-container-low transition-colors">{rowFn(log)}</tr>)
+            }
+          </tbody>
+        </table>
+      </div>
+      <div className="px-4 py-3 border-t border-outline-variant/10 flex items-center justify-between">
+        <span className="text-label-md text-on-surface-variant">Page {data.page} of {data.pages} ({data.total} total)</span>
+        <div className="flex gap-2">
+          <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page<=1 || loading}
+            className="px-3 py-1.5 rounded-lg border border-outline-variant text-label-md disabled:opacity-40 hover:bg-surface-container-low transition-all">Prev</button>
+          <button onClick={()=>setPage(p=>Math.min(data.pages,p+1))} disabled={page>=data.pages || loading}
+            className="px-3 py-1.5 rounded-lg border border-outline-variant text-label-md disabled:opacity-40 hover:bg-surface-container-low transition-all">Next</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Dashboard ────────────────────────────────────────────
+export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState('overview');
 
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
       <TopNavBar />
-
-      <main className="pt-32 pb-section-padding px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
-        {/* Page Header */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
-          <div>
-            <h1 className="text-display-lg text-primary mb-2 hidden md:block">Dashboard</h1>
-            <h1 className="text-display-lg-mobile text-primary mb-2 block md:hidden">Dashboard</h1>
-            <p className="text-body-lg text-on-surface-variant">
-              Smart locker system overview for today.
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-6 py-3 rounded-full bg-surface-container-highest text-primary text-label-md font-semibold hover:bg-surface-dim transition-all active:scale-95 duration-200">
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>lock_open</span>
-              Unlock All
-            </button>
-            <button className="flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-on-primary text-label-md font-semibold hover:opacity-80 transition-all active:scale-95 duration-200 shadow-cta">
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>lock</span>
-              Lock All
-            </button>
-          </div>
+      <main className="pt-24 pb-section-padding px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
+        <header className="mb-8">
+          <h1 className="text-display-lg text-primary font-bold mb-1">Admin Dashboard</h1>
+          <p className="text-body-lg text-on-surface-variant">Manage lockers, users, and monitor system activity</p>
         </header>
 
-        {/* Stats Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-12">
-          {loading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-surface-container-lowest rounded-xl p-8 border border-outline-variant/10 animate-pulse h-48" />
-            ))
-          ) : (
-            <>
-              <StatCard
-                label="Total Lockers"
-                icon="grid_view"
-                value={stats?.total ?? 245}
-                sub={
-                  <>
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>trending_up</span>
-                    {stats?.growth ?? '+12 this month'}
-                  </>
-                }
-              />
-              <StatCard
-                label="In Use"
-                icon="shopping_bag"
-                value={stats?.inUse ?? 182}
-                sub={<span className="text-on-surface-variant">{stats?.capacity ?? '74% capacity'}</span>}
-              />
-              <StatCard
-                label="Needs Maintenance"
-                icon="build"
-                iconColor="text-error"
-                value={<span className="text-error">{stats?.maintenance ?? 3}</span>}
-                sub={<span className="text-on-surface-variant">Requires immediate action</span>}
-              />
-            </>
-          )}
-        </section>
+        {/* Tab Bar */}
+        <div className="flex gap-1 mb-8 bg-surface-container-lowest rounded-2xl p-1.5 border border-outline-variant/10 overflow-x-auto">
+          {TABS.map(t => (
+            <button key={t.key} onClick={()=>setActiveTab(t.key)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-label-md font-semibold transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
+                activeTab===t.key ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
+              }`}>
+              <span className="material-symbols-outlined" style={{fontSize:'18px'}}>{t.icon}</span>
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-        {/* Status + Visual Map */}
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
-          {/* Status Cards */}
-          <div className="lg:col-span-1 flex flex-col gap-gutter">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-headline-md text-primary">Status</h2>
-            </div>
-            <StatusCard
-              color="#E8F5E9"
-              iconName="check_circle"
-              statusLabel="AVAILABLE"
-              count={stats?.available ?? 60}
-            />
-            <StatusCard
-              color="#d8e2ff"
-              iconName="lock_clock"
-              statusLabel="IN USE"
-              count={stats?.inUse ?? 182}
-            />
-            <StatusCard
-              color="#ffdad6"
-              iconName="warning"
-              statusLabel="MAINTENANCE"
-              count={stats?.maintenance ?? 3}
-            />
-          </div>
-
-          {/* Locker Visual Map */}
-          <div className="lg:col-span-2 flex flex-col">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-headline-md text-primary">Zone A (Ground Floor)</h2>
-              <button className="text-secondary text-label-md font-semibold hover:underline">
-                View Full Map
-              </button>
-            </div>
-
-            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-8 flex-grow flex items-center justify-center relative overflow-hidden min-h-[320px]">
-              {/* Background image */}
-              <div
-                className="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-luminosity"
-                style={{
-                  backgroundImage:
-                    "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCgsvXKqBW39jfcN-nOvTCSll6GpN25b28X6l_iinwlPjjIoTYPA1QPUCRAGxz1_EVDMkXeZfYBAjVaeaVwj0Mjw2eMcLc7W8vKulIQ27NLELL7LfvfdqUxeDT0sD8juFWYIqJ-3Zv5xV2_oXPT9nmjqKCwv-0VsO6dBFBGvl3jGo-A0VQ1GqyHjGryU2UyAsZuvsWJWAVklPfH-VrmWgi53k_Vm5QlWWX7qfC1TSSH243isKy2w6fuvxPfu1Gg3caCmcAwGtsNq73_')",
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent" />
-
-              {/* Locker Grid */}
-              <div className="relative z-10 grid grid-cols-6 gap-3 w-full max-w-lg p-6 bg-white/50 backdrop-blur-md rounded-xl border border-white shadow-sm">
-                {SAMPLE_LOCKER_GRID.map((status, i) => (
-                  <div
-                    key={i}
-                    title={status}
-                    className="aspect-square rounded shadow-sm cursor-pointer transition-transform hover:scale-110 duration-200"
-                    style={{ backgroundColor: LOCKER_COLORS[status] }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="flex items-center gap-6 mt-4 px-1">
-              {[
-                { color: LOCKER_COLORS.available, label: 'Available' },
-                { color: LOCKER_COLORS.in_use, label: 'In Use' },
-                { color: LOCKER_COLORS.maintenance, label: 'Maintenance' },
-              ].map(({ color, label }) => (
-                <div key={label} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
-                  <span className="text-label-md text-on-surface-variant">{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* Tab Content */}
+        {activeTab === 'overview'     && <OverviewTab />}
+        {activeTab === 'lockers'      && <LockersTab />}
+        {activeTab === 'users'        && <UsersTab />}
+        {activeTab === 'unlock-logs'  && (
+          <LogTable
+            endpoint="/api/admin/logs/lockers"
+            columns={['Time', 'Locker', 'Zone', 'User', 'Action', 'Method']}
+            rowFn={l => (
+              <>
+                <td className="px-4 py-3 text-on-surface-variant text-xs">{new Date(l.timestamp).toLocaleString()}</td>
+                <td className="px-4 py-3 font-mono font-semibold text-primary">{l.lockerId}</td>
+                <td className="px-4 py-3 text-on-surface-variant">{l.locker?.zone || '—'}</td>
+                <td className="px-4 py-3 text-on-surface-variant">{l.user?.name || 'Unknown'}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${l.action==='unlock'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'}`}>{l.action}</span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">{l.method}</span>
+                </td>
+              </>
+            )}
+          />
+        )}
+        {activeTab === 'system-logs' && (
+          <LogTable
+            endpoint="/api/admin/logs/system"
+            columns={['Time', 'User', 'Action', 'Details', 'IP']}
+            rowFn={l => (
+              <>
+                <td className="px-4 py-3 text-on-surface-variant text-xs">{new Date(l.timestamp).toLocaleString()}</td>
+                <td className="px-4 py-3 text-on-surface-variant">{l.user?.username || 'System'}</td>
+                <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant">{l.action}</span></td>
+                <td className="px-4 py-3 text-on-surface-variant text-xs max-w-xs truncate">{l.details || '—'}</td>
+                <td className="px-4 py-3 font-mono text-on-surface-variant text-xs">{l.ipAddress || '—'}</td>
+              </>
+            )}
+          />
+        )}
       </main>
     </div>
   );

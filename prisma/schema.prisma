@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum LockerStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+}
+
+// ─── Models ───────────────────────────────────────────────────
+
+model User {
+  id           Int         @id @default(autoincrement())
+  username     String      @unique @db.VarChar(50)
+  email        String      @unique @db.VarChar(100)
+  name         String      @db.VarChar(100)
+  passwordHash String      @db.VarChar(255)
+  role         Role        @default(USER)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  lockers      Locker[]    @relation("LockerUser")
+  lockerLogs   LockerLog[]
+  systemLogs   SystemLog[]
+  otps         Otp[]
+
+  @@index([username])
+  @@index([email])
+}
+
+model Locker {
+  id          Int          @id @default(autoincrement())
+  lockerId    String       @unique @db.VarChar(20)  // e.g. "A-001"
+  zone        String       @db.VarChar(10)          // e.g. "A", "B"
+  floor       Int          @default(0)
+  row         Int
+  col         Int
+  status      LockerStatus @default(AVAILABLE)
+  totpSecret  String       @db.VarChar(100)         // base64 HMAC secret for TOTP
+  userId      Int?
+  lockedAt    DateTime?
+  description String?      @db.VarChar(200)
+
+  user        User?        @relation("LockerUser", fields: [userId], references: [id])
+  logs        LockerLog[]
+
+  @@index([zone])
+  @@index([status])
+  @@index([userId])
+}
+
+model LockerLog {
+  id        Int      @id @default(autoincrement())
+  lockerId  String   @db.VarChar(20)
+  userId    Int?
+  action    String   @db.VarChar(20)   // "lock" | "unlock"
+  method    String   @db.VarChar(20)   // "qr" | "otp" | "admin"
+  note      String?  @db.VarChar(255)
+  timestamp DateTime @default(now())
+
+  locker    Locker   @relation(fields: [lockerId], references: [lockerId])
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([lockerId])
+  @@index([userId])
+  @@index([timestamp])
+}
+
+model SystemLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String   @db.VarChar(50)   // "login" | "logout" | "update_profile" | "create_user" | ...
+  details   String?  @db.Text
+  ipAddress String?  @db.VarChar(50)
+  timestamp DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([timestamp])
+  @@index([action])
+}
+
+model Otp {
+  id        Int      @id @default(autoincrement())
+  code      String   @db.VarChar(6)    // 6-digit numeric (not used, kept for manual OTP flow if needed)
+  lockerId  String   @db.VarChar(20)
+  userId    Int
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([code, lockerId])
+  @@index([expiresAt])
+}
