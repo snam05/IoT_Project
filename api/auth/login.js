@@ -36,15 +36,17 @@ export default async function handler(req, res) {
       role: user.role,
     });
 
-    // Log login event
-    await prisma.systemLog.create({
-      data: {
-        userId: user.id,
-        action: 'login',
-        details: `Login from ${req.headers['x-forwarded-for'] || 'unknown'}`,
-        ipAddress: req.headers['x-forwarded-for'] || req.socket?.remoteAddress,
-      },
-    });
+    // Do not block login on audit logging; Vercel functions can hit the 10s limit during cold starts.
+    prisma.systemLog
+      .create({
+        data: {
+          userId: user.id,
+          action: 'login',
+          details: `Login from ${req.headers['x-forwarded-for'] || 'unknown'}`,
+          ipAddress: req.headers['x-forwarded-for'] || req.socket?.remoteAddress,
+        },
+      })
+      .catch((logErr) => console.error('[login:log]', logErr));
 
     res.setHeader('Set-Cookie', buildAuthCookie(token));
     return res.status(200).json({
