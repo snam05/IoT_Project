@@ -9,7 +9,13 @@ export function AuthProvider({ children }) {
   // Fetch current user on mount (validates JWT cookie)
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        const ct = r.headers.get('content-type') || '';
+        if (r.ok && ct.includes('application/json')) {
+          return r.json();
+        }
+        return null;
+      })
       .then((data) => setUser(data?.user ?? null))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));

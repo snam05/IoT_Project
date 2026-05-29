@@ -1,5 +1,5 @@
-import prisma from '../../lib/prisma.js';
-import { requireAuth } from '../../lib/auth.js';
+import prisma from '../lib/prisma.js';
+import { requireAuth } from '../lib/auth.js';
 
 /**
  * GET /api/lockers?zone=A&status=AVAILABLE&page=1&limit=50
