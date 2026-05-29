@@ -4,16 +4,19 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npx vercel dev",
-    "dev:vite": "vite",
-    "build": "vite build",
+    "dev": "npm run dev:frontend",
+    "build": "vite build --config frontend/vite.config.js",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "node backend/server.js",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "prisma migrate dev",
+    "mqtt:worker": "node backend/mqtt-worker.js",
+    "dev:frontend": "vite --config frontend/vite.config.js --host 0.0.0.0",
+    "dev:backend": "node backend/server.js",
+    "start": "node backend/server.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

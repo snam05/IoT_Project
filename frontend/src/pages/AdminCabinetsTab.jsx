@@ -1,0 +1,132 @@
+import { useCallback, useEffect, useState } from 'react';
+
+const STATUS_CLASS = {
+  PENDING: 'bg-yellow-100 text-yellow-700',
+  APPROVED: 'bg-green-100 text-green-700',
+  REJECTED: 'bg-red-100 text-red-700',
+};
+
+function CabinetBadge({ status }) {
+  return <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_CLASS[status] || 'bg-surface-container-high text-on-surface-variant'}`}>{status}</span>;
+}
+
+export default function AdminCabinetsTab() {
+  const [data, setData] = useState({ cabinets: [], total: 0 });
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+  const [message, setMessage] = useState('');
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setMessage('');
+    const q = new URLSearchParams({ limit: '50', ...(status ? { status } : {}) });
+    fetch(`/api/admin/cabinets?${q}`, { credentials: 'include' })
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setMessage('Could not load cabinets'))
+      .finally(() => setLoading(false));
+  }, [status]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load(); }, [load]);
+
+  const update = async (id, action) => {
+    setBusyId(id);
+    setMessage('');
+    try {
+      const res = await fetch('/api/admin/cabinets', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action }),
+      });
+      const body = await res.json();
+      if (!res.ok) setMessage(body.error || 'Update failed');
+      load();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const remove = async (cabinet) => {
+    if (!confirm(`Delete cabinet ${cabinet.identity}? ESP32 must be reset after this.`)) return;
+    setBusyId(cabinet.id);
+    setMessage('');
+    try {
+      const res = await fetch(`/api/admin/cabinets?id=${cabinet.id}`, { method: 'DELETE', credentials: 'include' });
+      const body = await res.json();
+      if (!res.ok) setMessage(body.error || 'Delete failed');
+      load();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-3 mb-6 items-center">
+        <select value={status} onChange={(e) => setStatus(e.target.value)}
+          className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
+          <option value="">All Cabinets</option>
+          <option>PENDING</option>
+          <option>APPROVED</option>
+          <option>REJECTED</option>
+        </select>
+        <button onClick={load} className="px-4 py-2 rounded-xl bg-secondary text-white text-label-md font-semibold hover:opacity-90 active:scale-95 transition-all">Refresh</button>
+        {message && <span className="text-body-md text-error">{message}</span>}
+      </div>
+
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-container-low border-b border-outline-variant/10">
+              <tr>
+                {['Identity', 'Cabinet Code', 'Compartments', 'Status', 'Last Seen', 'DB Lockers', 'Actions'].map((h) => (
+                  <th key={h} className="text-left px-4 py-3 text-label-md text-on-surface-variant font-semibold">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/10">
+              {loading ? (
+                <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant">Loading...</td></tr>
+              ) : data.cabinets.length === 0 ? (
+                <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant">No cabinets</td></tr>
+              ) : data.cabinets.map((cabinet) => (
+                <tr key={cabinet.id} className="hover:bg-surface-container-low transition-colors">
+                  <td className="px-4 py-3 font-mono font-semibold text-primary">{cabinet.identity}</td>
+                  <td className="px-4 py-3 font-mono text-on-surface-variant">{cabinet.cabinetCode}</td>
+                  <td className="px-4 py-3 text-on-surface-variant">{cabinet.compartmentCount}</td>
+                  <td className="px-4 py-3"><CabinetBadge status={cabinet.status} /></td>
+                  <td className="px-4 py-3 text-on-surface-variant text-xs">{cabinet.lastSeenAt ? new Date(cabinet.lastSeenAt).toLocaleString() : '-'}</td>
+                  <td className="px-4 py-3 text-on-surface-variant">{cabinet._count?.lockers || 0}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      {cabinet.status !== 'APPROVED' && (
+                        <button onClick={() => update(cabinet.id, 'approve')} disabled={busyId === cabinet.id}
+                          className="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50">
+                          Approve
+                        </button>
+                      )}
+                      {cabinet.status === 'PENDING' && (
+                        <button onClick={() => update(cabinet.id, 'reject')} disabled={busyId === cabinet.id}
+                          className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50">
+                          Reject
+                        </button>
+                      )}
+                      <button onClick={() => remove(cabinet)} disabled={busyId === cabinet.id}
+                        className="px-3 py-1 rounded-lg border border-outline-variant text-on-surface-variant text-xs font-semibold hover:bg-surface-container-low active:scale-95 transition-all disabled:opacity-50">
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-4 py-3 border-t border-outline-variant/10 text-label-md text-on-surface-variant">Total: {data.total} cabinets</div>
+      </div>
+    </div>
+  );
+}

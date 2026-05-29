@@ -1,16 +1,54 @@
-# React + Vite
+# Locker System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Monorepo layout:
 
-Currently, two official plugins are available:
+- `frontend/`: React + Vite UI.
+- `backend/`: Node HTTP API, static frontend serving, and MQTT worker.
+- `prisma/`: Prisma schema and seed.
+- `esp32.ino`: ESP32 cabinet firmware.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Local development
 
-## React Compiler
+Run backend API/static server:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+MQTT_WORKER_ENABLED=false npm run dev:backend
+```
 
-## Expanding the ESLint configuration
+Run frontend Vite dev server in another terminal:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm run dev:frontend
+```
+
+Vite proxies `/api` to `http://127.0.0.1:3000`.
+
+## Production / Coolify
+
+Use the included `Dockerfile`. The container listens on port `3000` and runs:
+
+```bash
+npm run start
+```
+
+Set these environment variables in Coolify:
+
+```bash
+DATABASE_URL=mysql://USER:PASSWORD@HOST:PORT/DATABASE?sslaccept=strict
+JWT_SECRET=replace-with-a-long-random-secret
+JWT_EXPIRES_IN=7d
+MQTT_HOST=xxxxxxxx.s1.eu.hivemq.cloud
+MQTT_PORT=8883
+MQTT_USERNAME=your-hivemq-username
+MQTT_PASSWORD=your-hivemq-password
+MQTT_WORKER_ENABLED=true
+PORT=3000
+```
+
+Before first production run, apply schema changes against the database:
+
+```bash
+npm run db:push
+```
+
+The backend process also starts the MQTT worker by default. Set `MQTT_WORKER_ENABLED=false` only when running a separate MQTT worker process.

@@ -43,7 +43,7 @@ export default async function handler(req, res) {
   try {
     const locker = await prisma.locker.findUnique({
       where: { lockerId },
-      include: { user: { select: { id: true, name: true } } },
+      include: { user: { select: { id: true, name: true } }, cabinet: true },
     });
 
     if (!locker) {
@@ -55,9 +55,21 @@ export default async function handler(req, res) {
 
     // ── OTP Verification ──────────────────────────────────────
     if (method === 'otp') {
-      const valid = verifyTotp(code, locker.totpSecret);
-      if (!valid) {
-        return res.status(401).json({ error: 'Invalid or expired OTP code' });
+      if (locker.cabinet) {
+        const otp = await prisma.otp.findFirst({
+          where: {
+            lockerId: locker.cabinet.identity,
+            code,
+            used: false,
+            expiresAt: { gt: new Date() },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (!otp) return res.status(401).json({ error: 'Invalid or expired OTP code' });
+        await prisma.otp.update({ where: { id: otp.id }, data: { used: true, userId: payload.userId } });
+      } else {
+        const valid = verifyTotp(code, locker.totpSecret);
+        if (!valid) return res.status(401).json({ error: 'Invalid or expired OTP code' });
       }
     }
 

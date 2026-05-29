@@ -23,6 +23,12 @@ enum LockerStatus {
   MAINTENANCE
 }
 
+enum CabinetStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // ─── Models ───────────────────────────────────────────────────
 
 model User {
@@ -46,32 +52,55 @@ model User {
 }
 
 model Locker {
-  id          Int          @id @default(autoincrement())
-  lockerId    String       @unique @db.VarChar(20)  // e.g. "A-001"
-  zone        String       @db.VarChar(10)          // e.g. "A", "B"
-  floor       Int          @default(0)
-  row         Int
-  col         Int
-  status      LockerStatus @default(AVAILABLE)
-  totpSecret  String       @db.VarChar(100)         // base64 HMAC secret for TOTP
-  userId      Int?
-  lockedAt    DateTime?
-  description String?      @db.VarChar(200)
+  id            Int          @id @default(autoincrement())
+  lockerId      String       @unique @db.VarChar(80)  // e.g. "CABINET-A:1"
+  zone          String       @db.VarChar(10)          // e.g. "A", "B"
+  floor         Int          @default(0)
+  row           Int
+  col           Int
+  status        LockerStatus @default(AVAILABLE)
+  totpSecret    String       @db.VarChar(100)
+  userId        Int?
+  lockedAt      DateTime?
+  description   String?      @db.VarChar(200)
+  cabinetId     Int?
+  compartmentNo Int?
 
-  user        User?        @relation("LockerUser", fields: [userId], references: [id])
-  logs        LockerLog[]
+  user          User?        @relation("LockerUser", fields: [userId], references: [id])
+  cabinet       Cabinet?     @relation(fields: [cabinetId], references: [id])
+  logs          LockerLog[]
 
   @@index([zone])
   @@index([status])
   @@index([userId])
+  @@index([cabinetId])
+  @@unique([cabinetId, compartmentNo])
+}
+
+model Cabinet {
+  id               Int           @id @default(autoincrement())
+  cabinetCode      String        @unique @db.VarChar(50)
+  identity         String        @unique @db.VarChar(80)
+  compartmentCount Int
+  status           CabinetStatus @default(PENDING)
+  lastSeenAt       DateTime?
+  approvedAt       DateTime?
+  rejectedAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  lockers          Locker[]
+
+  @@index([status])
+  @@index([lastSeenAt])
 }
 
 model LockerLog {
   id        Int      @id @default(autoincrement())
-  lockerId  String   @db.VarChar(20)
+  lockerId  String   @db.VarChar(80)
   userId    Int?
-  action    String   @db.VarChar(20)   // "lock" | "unlock"
-  method    String   @db.VarChar(20)   // "qr" | "otp" | "admin"
+  action    String   @db.VarChar(80)   // "lock" | "unlock"
+  method    String   @db.VarChar(80)   // "qr" | "otp" | "admin"
   note      String?  @db.VarChar(255)
   timestamp DateTime @default(now())
 
@@ -101,13 +130,13 @@ model SystemLog {
 model Otp {
   id        Int      @id @default(autoincrement())
   code      String   @db.VarChar(6)    // 6-digit numeric (not used, kept for manual OTP flow if needed)
-  lockerId  String   @db.VarChar(20)
-  userId    Int
+  lockerId  String   @db.VarChar(80)
+  userId    Int?
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
 
   @@index([code, lockerId])
   @@index([expiresAt])

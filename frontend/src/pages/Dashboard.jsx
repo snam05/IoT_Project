@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import TopNavBar from '../components/TopNavBar';
+import AdminCabinetsTab from './AdminCabinetsTab';
 
 const TABS = [
   { key: 'overview', icon: 'dashboard', label: 'Overview' },
   { key: 'lockers', icon: 'grid_view', label: 'Lockers' },
+  { key: 'cabinets', icon: 'dns', label: 'Cabinets' },
   { key: 'users', icon: 'group', label: 'Users' },
   { key: 'unlock-logs', icon: 'key', label: 'Unlock Logs' },
   { key: 'system-logs', icon: 'history', label: 'System Logs' },
@@ -396,6 +398,7 @@ export default function Dashboard() {
         {activeTab === 'overview'     && <OverviewTab />}
         {activeTab === 'lockers'      && <LockersTab />}
         {activeTab === 'users'        && <UsersTab />}
+        {activeTab === 'cabinets'     && <AdminCabinetsTab />}
         {activeTab === 'unlock-logs'  && (
           <LogTable
             endpoint="/api/admin/logs/lockers"
