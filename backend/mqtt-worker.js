@@ -93,8 +93,6 @@ export function startMqttWorker() {
   client.on('error', (err) => console.error('[mqtt-worker] mqtt error', err.message));
   client.on('close', () => console.warn('[mqtt-worker] connection closed'));
   client.on('offline', () => console.warn('[mqtt-worker] offline'));
-  client.on('close', () => console.warn('[mqtt-worker] connection closed'));
-  client.on('offline', () => console.warn('[mqtt-worker] offline'));
   return client;
 }
 

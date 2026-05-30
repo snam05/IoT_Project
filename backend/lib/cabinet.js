@@ -141,8 +141,37 @@ export async function rejectCabinet(cabinetId) {
 export async function deleteCabinet(cabinetId) {
   const id = Number(cabinetId);
   return prisma.$transaction(async (tx) => {
-    await tx.locker.deleteMany({ where: { cabinetId: id } });
-    return tx.cabinet.delete({ where: { id } });
+    const cabinet = await tx.cabinet.findUnique({
+      where: { id },
+      include: { lockers: true }
+    });
+    if (!cabinet) {
+      throw new Error('Cabinet not found');
+    }
+
+    const lockerIds = cabinet.lockers.map(l => l.lockerId);
+
+    // 1. Delete all related locker logs
+    if (lockerIds.length > 0) {
+      await tx.lockerLog.deleteMany({
+        where: { lockerId: { in: lockerIds } }
+      });
+    }
+
+    // 2. Delete all related OTP records
+    await tx.otp.deleteMany({
+      where: { lockerId: cabinet.identity }
+    });
+
+    // 3. Delete all locker compartments
+    await tx.locker.deleteMany({
+      where: { cabinetId: id }
+    });
+
+    // 4. Delete the cabinet itself
+    return tx.cabinet.delete({
+      where: { id }
+    });
   });
 }
 

@@ -38,6 +38,7 @@ SSD1306Wire display(0x3c, OLED_SDA, OLED_SCL);
 const unsigned long OTP_INTERVAL = 30000;
 const unsigned long HELLO_INTERVAL = 15000;
 const unsigned long RECONNECT_INTERVAL = 3000;
+const unsigned long DISPLAY_REFRESH_INTERVAL = 500;
 
 String cabinetIdentity;
 String currentCode = "------";
@@ -47,8 +48,14 @@ String statusMessage = "Starting";
 unsigned long lastOtpRequest = 0;
 unsigned long lastHello = 0;
 unsigned long lastReconnectAttempt = 0;
+unsigned long lastDisplayRefresh = 0;
 String lastProcessedMsgId = "";
 unsigned long codeStartedAt = 0;
+String lastRenderedStatusTitle = "";
+String lastRenderedStatusDetail = "";
+String lastRenderedOtpCode = "";
+String lastRenderedQrPayload = "";
+int lastRenderedProgressWidth = -1;
 
 unsigned long tempDisplayStartedAt = 0;
 bool isTempDisplayActive = false;
@@ -89,6 +96,15 @@ String jsonValue(String payload, String key) {
 }
 
 void drawStatus(String title, String detail) {
+  unsigned long now = millis();
+  if (
+    title == lastRenderedStatusTitle &&
+    detail == lastRenderedStatusDetail &&
+    now - lastDisplayRefresh < DISPLAY_REFRESH_INTERVAL
+  ) {
+    return;
+  }
+
   display.clear();
   display.setColor(WHITE);
   display.setTextAlignment(TEXT_ALIGN_CENTER);
@@ -97,6 +113,13 @@ void drawStatus(String title, String detail) {
   display.setFont(ArialMT_Plain_10);
   display.drawStringMaxWidth(64, 30, 118, detail);
   display.display();
+
+  lastDisplayRefresh = now;
+  lastRenderedStatusTitle = title;
+  lastRenderedStatusDetail = detail;
+  lastRenderedOtpCode = "";
+  lastRenderedQrPayload = "";
+  lastRenderedProgressWidth = -1;
 }
 
 void prepareQr(String payload) {
@@ -107,6 +130,14 @@ void prepareQr(String payload) {
 void drawOtpScreen() {
   unsigned long elapsed = millis() - codeStartedAt;
   int progressWidth = elapsed >= OTP_INTERVAL ? 0 : map(OTP_INTERVAL - elapsed, 0, OTP_INTERVAL, 0, 128);
+  progressWidth = constrain(progressWidth, 0, 128);
+
+  unsigned long now = millis();
+  bool otpChanged = currentCode != lastRenderedOtpCode || currentQrPayload != lastRenderedQrPayload;
+  bool progressChanged = progressWidth != lastRenderedProgressWidth;
+  if (!otpChanged && (!progressChanged || now - lastDisplayRefresh < DISPLAY_REFRESH_INTERVAL)) {
+    return;
+  }
 
   display.clear();
   display.setColor(WHITE);
@@ -146,6 +177,13 @@ void drawOtpScreen() {
   display.drawString(96, 39, currentCode.substring(3, 6));
 
   display.display();
+
+  lastDisplayRefresh = now;
+  lastRenderedOtpCode = currentCode;
+  lastRenderedQrPayload = currentQrPayload;
+  lastRenderedProgressWidth = progressWidth;
+  lastRenderedStatusTitle = "";
+  lastRenderedStatusDetail = "";
 }
 
 void publishHello() {
@@ -201,11 +239,26 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
       return;
     }
 
-    currentCode = jsonValue(message, "code");
-    currentQrPayload = jsonValue(message, "qrPayload");
+    String nextCode = jsonValue(message, "code");
+    String nextQrPayload = jsonValue(message, "qrPayload");
+    bool duplicateActiveOtp =
+      nextCode == currentCode &&
+      nextQrPayload == currentQrPayload &&
+      cabinetStatus == "APPROVED" &&
+      millis() - codeStartedAt < 5000;
+    if (duplicateActiveOtp) {
+      Serial.println("[OTP] Ignored duplicate OTP response");
+      return;
+    }
+
+    currentCode = nextCode;
+    currentQrPayload = nextQrPayload;
     if (currentCode.length() == 6) {
       cabinetStatus = "APPROVED";
       codeStartedAt = millis();
+      lastRenderedOtpCode = "";
+      lastRenderedQrPayload = "";
+      lastRenderedProgressWidth = -1;
       prepareQr(currentQrPayload.length() ? currentQrPayload : currentCode);
       drawOtpScreen();
     }
