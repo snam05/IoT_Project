@@ -19,6 +19,8 @@ import adminUsers from './api/admin/users.js';
 import adminUserById from './api/admin/users/[id].js';
 import adminCabinets from './api/admin/cabinets.js';
 import mqttCabinet from './api/mqtt/cabinet.js';
+import adminLogsLockers from './api/admin/logs/lockers.js';
+import adminLogsSystem from './api/admin/logs/system.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -39,6 +41,8 @@ const routes = [
   ['GET|PUT|DELETE', /^\/api\/admin\/users\/([^/]+)\/?$/, adminUserById, ['id']],
   ['GET|PUT|DELETE', /^\/api\/admin\/cabinets\/?$/, adminCabinets],
   ['POST', /^\/api\/mqtt\/cabinet\/?$/, mqttCabinet],
+  ['GET', /^\/api\/admin\/logs\/lockers\/?$/, adminLogsLockers],
+  ['GET', /^\/api\/admin\/logs\/system\/?$/, adminLogsSystem],
 ];
 
 const mimeTypes = {
