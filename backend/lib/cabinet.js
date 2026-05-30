@@ -146,44 +146,48 @@ export async function deleteCabinet(cabinetId) {
   });
 }
 
+// Global in-memory cache to prevent race conditions during concurrent OTP requests
+const otpCache = {};
+
 export async function createCabinetOtp(input) {
   const hello = await recordCabinetHello(input);
   if (hello.status !== 'APPROVED') return hello;
 
-  // Check if there is already an active, unused OTP created in the last 2.5 seconds
-  const existingOtp = await prisma.otp.findFirst({
-    where: {
-      lockerId: hello.cabinet.identity,
-      used: false,
-      expiresAt: { gt: new Date() },
-      createdAt: { gt: new Date(Date.now() - 2500) }
-    },
-    orderBy: { createdAt: 'desc' }
-  });
+  const cabinetIdentity = hello.cabinet.identity;
+  const now = Date.now();
 
-  if (existingOtp) {
+  // Check if we have an active, unused OTP in the synchronous in-memory cache
+  const cached = otpCache[cabinetIdentity];
+  if (cached && now - cached.createdAt < 2500) {
     return {
       status: 'APPROVED',
       cabinet: hello.cabinet,
-      code: existingOtp.code,
-      expiresAt: existingOtp.expiresAt,
-      expiresIn: Math.max(0, Math.floor((existingOtp.expiresAt.getTime() - Date.now()) / 1000)),
-      qrPayload: existingOtp.code,
+      code: cached.code,
+      expiresAt: cached.expiresAt,
+      expiresIn: Math.max(0, Math.floor((cached.expiresAt.getTime() - now) / 1000)),
+      qrPayload: cached.code,
     };
   }
 
   const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
-  const expiresAt = new Date(Date.now() + 30_000);
+  const expiresAt = new Date(now + 30_000);
+
+  // Synchronously update the in-memory cache immediately to prevent any concurrent race conditions
+  otpCache[cabinetIdentity] = {
+    code,
+    createdAt: now,
+    expiresAt,
+  };
 
   // Delete all existing OTPs for this cabinet to prevent database bloating
   await prisma.otp.deleteMany({
-    where: { lockerId: hello.cabinet.identity }
+    where: { lockerId: cabinetIdentity }
   });
 
   await prisma.otp.create({
     data: {
       code,
-      lockerId: hello.cabinet.identity,
+      lockerId: cabinetIdentity,
       userId: null,
       expiresAt,
       used: false,
