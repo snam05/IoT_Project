@@ -42,23 +42,32 @@ export async function recordCabinetHello(input) {
   const receivedIdentity = buildCabinetIdentity(cabinetCode, compartmentCount);
   const now = new Date();
 
-  const existing = await prisma.cabinet.findUnique({ where: { cabinetCode } });
+  let existing = await prisma.cabinet.findUnique({ where: { cabinetCode } });
   if (!existing) {
-    const cabinet = await prisma.cabinet.create({
-      data: {
-        cabinetCode,
-        identity: receivedIdentity,
-        compartmentCount,
+    try {
+      const cabinet = await prisma.cabinet.create({
+        data: {
+          cabinetCode,
+          identity: receivedIdentity,
+          compartmentCount,
+          status: 'PENDING',
+          lastSeenAt: now,
+        },
+      });
+      return {
         status: 'PENDING',
-        lastSeenAt: now,
-      },
-    });
-    return {
-      status: 'PENDING',
-      cabinet,
-      receivedIdentity,
-      message: 'Cabinet is waiting for admin approval.',
-    };
+        cabinet,
+        receivedIdentity,
+        message: 'Cabinet is waiting for admin approval.',
+      };
+    } catch (err) {
+      if (err.code === 'P2002') {
+        existing = await prisma.cabinet.findUnique({ where: { cabinetCode } });
+        if (!existing) throw err;
+      } else {
+        throw err;
+      }
+    }
   }
 
   await prisma.cabinet.update({ where: { id: existing.id }, data: { lastSeenAt: now } });
@@ -274,4 +283,8 @@ export async function createCabinetOtp(input) {
       qrPayload: code,
     };
   });
+}
+
+export function invalidateCabinetOtpCache(cabinetIdentity) {
+  delete otpCache[cabinetIdentity];
 }

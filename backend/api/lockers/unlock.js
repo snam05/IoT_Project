@@ -175,8 +175,19 @@ export default async function handler(req, res) {
         status: newStatus,
         userId: action === 'lock' ? payload.userId : null,
         lockedAt: action === 'lock' ? new Date() : null,
-      },
+      }
     });
+
+    // Invalidate OTP cache and delete used OTP on success
+    if (resolvedCode) {
+      await prisma.otp.deleteMany({
+        where: { code: resolvedCode }
+      });
+      if (cabinet) {
+        const { invalidateCabinetOtpCache } = await import('../../lib/cabinet.js');
+        invalidateCabinetOtpCache(cabinet.identity);
+      }
+    }
 
     // ── Log ───────────────────────────────────────────────────
     await prisma.lockerLog.create({
