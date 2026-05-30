@@ -20,11 +20,12 @@ export default async function handler(req, res) {
 
   // ── GET ──────────────────────────────────────────────────
   if (req.method === 'GET') {
-    const { zone, status, page = '1', limit = '50' } = req.query;
+    const { zone, status, cabinetId, page = '1', limit = '50' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const where = {};
     if (zone) where.zone = zone.toUpperCase();
     if (status) where.status = status.toUpperCase();
+    if (cabinetId) where.cabinetId = parseInt(cabinetId);
 
     try {
       const [lockers, total] = await Promise.all([

@@ -49,11 +49,9 @@ function formatLockerId(lockerOrId) {
 // ── Overview Tab ──────────────────────────────────────────────
 function OverviewTab() {
   const [stats, setStats] = useState(null);
-  const [lockers, setLockers] = useState([]);
 
   useEffect(() => {
     fetch('/api/stats', { credentials: 'include' }).then(r => r.json()).then(setStats).catch(() => {});
-    fetch('/api/lockers?limit=18', { credentials: 'include' }).then(r => r.json()).then(d => setLockers(d.lockers || [])).catch(() => {});
   }, []);
 
   const statCards = stats ? [
@@ -79,28 +77,6 @@ function OverviewTab() {
           ))
         }
       </div>
-      <div>
-        <h2 className="text-headline-md text-primary mb-4">Locker Map</h2>
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6">
-          <div className="grid grid-cols-6 gap-2 max-w-md">
-            {lockers.map(l => (
-              <div key={l.lockerId} title={`${formatLockerId(l)} — ${l.status}`}
-                className="aspect-square rounded-lg cursor-pointer hover:scale-110 transition-transform duration-200 flex items-center justify-center"
-                style={{ backgroundColor: STATUS_COLOR[l.status] || '#f0f0f0' }}>
-                <span className="text-[10px] font-bold opacity-60">{formatLockerId(l)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-6 mt-4">
-            {Object.entries(STATUS_COLOR).map(([s, c]) => (
-              <div key={s} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm" style={{backgroundColor:c}}/>
-                <span className="text-label-md text-on-surface-variant">{s}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -109,8 +85,16 @@ function OverviewTab() {
 function LockersTab() {
   const [data, setData] = useState({ lockers: [], total: 0 });
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState({ status: '', zone: '' });
+  const [filter, setFilter] = useState({ status: '', zone: '', cabinetId: '' });
+  const [cabinets, setCabinets] = useState([]);
   const [actionLoading, setActionLoading] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/admin/cabinets?limit=100', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setCabinets(d.cabinets || []))
+      .catch(() => {});
+  }, []);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -139,6 +123,15 @@ function LockersTab() {
           className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
           <option value="">All Status</option>
           <option>AVAILABLE</option><option>IN_USE</option><option>MAINTENANCE</option>
+        </select>
+        <select value={filter.cabinetId} onChange={e=>setFilter(f=>({...f,cabinetId:e.target.value}))}
+          className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
+          <option value="">All Cabinets</option>
+          {cabinets.map(c => (
+            <option key={c.id} value={c.id}>
+              {c.cabinetCode} ({c.identity})
+            </option>
+          ))}
         </select>
         <select value={filter.zone} onChange={e=>setFilter(f=>({...f,zone:e.target.value}))}
           className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
