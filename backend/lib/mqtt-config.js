@@ -11,6 +11,8 @@ export function getMqttConfig(connectTimeout = 6000, reconnectPeriod = 0) {
   const url = explicitUrl || `${protocol}://${hostname}:${port}`;
   const rejectUnauthorized = protocol === 'mqtts' && process.env.MQTT_REJECT_UNAUTHORIZED !== 'false';
 
+  console.log('[mqtt-config] RESOLVED:', { host: hostname, port, protocol, url });
+
   return {
     url,
     displayUrl: url.replace(/:\/\/[^:@/]+:[^@/]+@/, '://***:***@'),
