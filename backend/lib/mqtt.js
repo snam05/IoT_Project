@@ -1,16 +1,6 @@
 import mqtt from 'mqtt';
 import { parseLockerId } from './cabinet.js';
-
-const MQTT_OPTIONS = {
-  host: process.env.MQTT_HOST,
-  port: parseInt(process.env.MQTT_PORT || '8883', 10),
-  protocol: 'mqtts',
-  username: process.env.MQTT_USERNAME,
-  password: process.env.MQTT_PASSWORD,
-  connectTimeout: 6000,
-  reconnectPeriod: 0,
-  rejectUnauthorized: true,
-};
+import { getMqttConfig } from './mqtt-config.js';
 
 export const TOPICS = {
   command: (lockerId) => `lockersystem/locker/${lockerId}/command`,
@@ -24,10 +14,8 @@ export const TOPICS = {
 };
 
 function connectClient(timeout = 6000) {
-  return mqtt.connect(`mqtts://${MQTT_OPTIONS.host}:${MQTT_OPTIONS.port}`, {
-    ...MQTT_OPTIONS,
-    connectTimeout: timeout,
-  });
+  const config = getMqttConfig(timeout, 0);
+  return mqtt.connect(config.url, config.options);
 }
 
 export async function publishTopic(topic, payload, timeout = 6000) {

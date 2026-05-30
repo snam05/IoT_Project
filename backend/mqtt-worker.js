@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import mqtt from 'mqtt';
 import { fileURLToPath } from 'node:url';
+import { getMqttConfig } from './lib/mqtt-config.js';
 import { createCabinetOtp, recordCabinetHello } from './lib/cabinet.js';
 import { TOPICS } from './lib/mqtt.js';
 
@@ -13,14 +14,9 @@ function parseJson(payload) {
 }
 
 function buildMqttClient() {
-  const url = `mqtts://${process.env.MQTT_HOST}:${process.env.MQTT_PORT || '8883'}`;
-  return mqtt.connect(url, {
-    username: process.env.MQTT_USERNAME,
-    password: process.env.MQTT_PASSWORD,
-    rejectUnauthorized: true,
-    reconnectPeriod: 3000,
-    connectTimeout: 10000,
-  });
+  const config = getMqttConfig(10000, 3000);
+  console.log('[mqtt-worker] connecting to ' + config.displayUrl);
+  return mqtt.connect(config.url, config.options);
 }
 
 export function startMqttWorker() {
@@ -87,6 +83,10 @@ export function startMqttWorker() {
   });
 
   client.on('error', (err) => console.error('[mqtt-worker] mqtt error', err.message));
+  client.on('close', () => console.warn('[mqtt-worker] connection closed'));
+  client.on('offline', () => console.warn('[mqtt-worker] offline'));
+  client.on('close', () => console.warn('[mqtt-worker] connection closed'));
+  client.on('offline', () => console.warn('[mqtt-worker] offline'));
   return client;
 }
 
