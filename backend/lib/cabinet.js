@@ -184,7 +184,24 @@ export async function deleteCabinet(cabinetId) {
   });
 }
 
+// Simple short-lived memory cache for requestIds to prevent concurrent duplicate processing (e.g. MQTT worker + Webhook bridge)
+const processedRequestCache = new Map();
+
+function cacheRequestResult(requestId, result) {
+  processedRequestCache.set(requestId, result);
+  setTimeout(() => {
+    processedRequestCache.delete(requestId);
+  }, 10000);
+}
+
 export async function createCabinetOtp(input) {
+  const { requestId } = input || {};
+  
+  // If this exact requestId was processed recently, return the exact same result immediately!
+  if (requestId && processedRequestCache.has(requestId)) {
+    return processedRequestCache.get(requestId);
+  }
+
   const hello = await recordCabinetHello(input);
   if (hello.status !== 'APPROVED') return hello;
 
@@ -209,7 +226,7 @@ export async function createCabinetOtp(input) {
     },
   });
 
-  return {
+  const responseResult = {
     status: 'APPROVED',
     cabinet: hello.cabinet,
     code,
@@ -217,4 +234,10 @@ export async function createCabinetOtp(input) {
     expiresIn: 30,
     qrPayload: code,
   };
+
+  if (requestId) {
+    cacheRequestResult(requestId, responseResult);
+  }
+
+  return responseResult;
 }

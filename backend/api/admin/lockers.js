@@ -87,6 +87,7 @@ export default async function handler(req, res) {
       const dataUpdate = {
         ...(status ? { status } : {}),
         ...((status === 'AVAILABLE' || status === 'MAINTENANCE') ? { userId: null, lockedAt: null } : {}),
+        ...(status === 'IN_USE' ? { userId: payload.userId, lockedAt: new Date() } : {}),
       };
 
       const locker = await prisma.locker.update({
@@ -97,10 +98,11 @@ export default async function handler(req, res) {
       // Auto-resolve physical action based on transition:
       // - Status -> AVAILABLE (Unlock / Restore): physically unlock (LOW)
       // - Status -> MAINTENANCE: physically lock (HIGH)
+      // - Status -> IN_USE (Lock): physically lock (HIGH)
       let resolvedAction = action;
       if (status === 'AVAILABLE') {
         resolvedAction = 'unlock';
-      } else if (status === 'MAINTENANCE') {
+      } else if (status === 'MAINTENANCE' || status === 'IN_USE') {
         resolvedAction = 'lock';
       }
 

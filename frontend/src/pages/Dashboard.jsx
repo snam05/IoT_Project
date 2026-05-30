@@ -166,32 +166,45 @@ function LockersTab() {
                   <td className="px-4 py-3 text-on-surface-variant">{l.zone}</td>
                   <td className="px-4 py-3 text-on-surface-variant">{l.floor}</td>
                   <td className="px-4 py-3"><Badge status={l.status}/></td>
-                  <td className="px-4 py-3 text-on-surface-variant">{l.user?.name || '—'}</td>
-                  <td className="px-4 py-3 text-on-surface-variant text-xs">{l.lockedAt ? new Date(l.lockedAt).toLocaleString() : '—'}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      {l.status !== 'AVAILABLE' && (
-                        <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', 'unlock')}
-                          disabled={actionLoading===l.lockerId}
-                          className="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50">
-                          Unlock
-                        </button>
-                      )}
-                      {l.status === 'AVAILABLE' && (
-                        <button onClick={() => updateStatus(l.lockerId, 'MAINTENANCE', null)}
-                          disabled={actionLoading===l.lockerId}
-                          className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50">
-                          Maintenance
-                        </button>
-                      )}
-                      {l.status === 'MAINTENANCE' && (
-                        <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', null)}
-                          disabled={actionLoading===l.lockerId}
-                          className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 active:scale-95 transition-all disabled:opacity-50">
-                          Restore
-                        </button>
-                      )}
-                    </div>
+                   <td className="px-4 py-3">
+                     {l.user?.role === 'ADMIN' ? (
+                       <span className="text-red-600 font-semibold">Admin</span>
+                     ) : (
+                       <span className="text-on-surface-variant">{l.user?.name || '—'}</span>
+                     )}
+                   </td>
+                   <td className="px-4 py-3 text-on-surface-variant text-xs">{l.lockedAt ? new Date(l.lockedAt).toLocaleString() : '—'}</td>
+                   <td className="px-4 py-3">
+                     <div className="flex gap-2">
+                       {l.status === 'IN_USE' && (
+                         <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', 'unlock')}
+                           disabled={actionLoading===l.lockerId}
+                           className="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50">
+                           Unlock
+                         </button>
+                       )}
+                       {l.status === 'AVAILABLE' && (
+                         <>
+                           <button onClick={() => updateStatus(l.lockerId, 'IN_USE', 'lock')}
+                             disabled={actionLoading===l.lockerId}
+                             className="px-3 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50">
+                             Lock
+                           </button>
+                           <button onClick={() => updateStatus(l.lockerId, 'MAINTENANCE', null)}
+                             disabled={actionLoading===l.lockerId}
+                             className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50">
+                             Maintenance
+                           </button>
+                         </>
+                       )}
+                       {l.status === 'MAINTENANCE' && (
+                         <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', null)}
+                           disabled={actionLoading===l.lockerId}
+                           className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 active:scale-95 transition-all disabled:opacity-50">
+                           Restore
+                         </button>
+                       )}
+                     </div>
                   </td>
                 </tr>
               ))}

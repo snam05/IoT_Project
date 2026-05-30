@@ -78,13 +78,13 @@ export default async function handler(req, res) {
             console.warn(`[admin/cabinets ${action}] failed for ${locker.lockerId}:`, err.message);
           }
 
-          // Clear user and set status to AVAILABLE in database
+          // Update database according to the action sent to ESP32
           await prisma.locker.update({
             where: { id: locker.id },
             data: {
-              status: 'AVAILABLE',
-              userId: null,
-              lockedAt: null,
+              status: commandAction === 'lock' ? 'IN_USE' : 'AVAILABLE',
+              userId: commandAction === 'lock' ? payload.userId : null,
+              lockedAt: commandAction === 'lock' ? new Date() : null,
             },
           });
 
