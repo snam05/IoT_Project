@@ -199,10 +199,12 @@ const processedRequestCache = new Map();
 
 export async function createCabinetOtp(input) {
   const { requestId } = input || {};
+  console.log(`[createCabinetOtp] Request received: requestId=${requestId}, input=${JSON.stringify(input)}`);
   
   if (requestId) {
     if (processedRequestCache.has(requestId)) {
       const cached = processedRequestCache.get(requestId);
+      console.log(`[createCabinetOtp] Cache HIT for requestId=${requestId}`);
       return cached instanceof Promise ? await cached : cached;
     }
   }
@@ -214,8 +216,29 @@ export async function createCabinetOtp(input) {
     const cabinetIdentity = hello.cabinet.identity;
     const now = Date.now();
 
+    // Deduplicate across multiple running server instances (e.g. production vs local dev)
+    // by checking if an OTP was recently generated in the DB within the last 2.5 seconds
+    const recentOtp = await prisma.otp.findFirst({
+      where: { lockerId: cabinetIdentity },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (recentOtp && now - new Date(recentOtp.createdAt).getTime() < 2500) {
+      console.log(`[createCabinetOtp] DB-level Deduplicated: Returning existing OTP ${recentOtp.code} created ${now - new Date(recentOtp.createdAt).getTime()}ms ago`);
+      return {
+        status: 'APPROVED',
+        cabinet: hello.cabinet,
+        code: recentOtp.code,
+        expiresAt: recentOtp.expiresAt,
+        expiresIn: Math.max(0, Math.ceil((new Date(recentOtp.expiresAt).getTime() - now) / 1000)),
+        qrPayload: recentOtp.code,
+      };
+    }
+
     const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
     const expiresAt = new Date(now + 30_000);
+
+    console.log(`[createCabinetOtp] Generating new OTP: identity=${cabinetIdentity}, requestId=${requestId}, code=${code}`);
 
     // Delete all existing OTPs for this cabinet immediately to auto-invalidate the old code
     await prisma.otp.deleteMany({
