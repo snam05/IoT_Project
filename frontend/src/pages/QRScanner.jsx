@@ -77,6 +77,23 @@ function formatLockerId(lockerId) {
   return lockerId;
 }
 
+function cameraErrorMessage(err) {
+  const name = err?.name || '';
+  if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'Camera requires HTTPS. Open this page with https:// and allow camera permission.';
+  }
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+    return 'Camera permission was blocked. Allow camera access in browser settings, then tap Start camera.';
+  }
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+    return 'No camera was found on this device.';
+  }
+  if (name === 'NotReadableError' || name === 'TrackStartError') {
+    return 'Camera is already being used by another app. Close it, then tap Start camera.';
+  }
+  return 'Could not start camera. Allow camera permission, use HTTPS, then tap Start camera.';
+}
+
 export default function QRScanner() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -91,9 +108,11 @@ export default function QRScanner() {
   const [result, setResult] = useState(null);
   const [scannerError, setScannerError] = useState('');
   const [scannerReady, setScannerReady] = useState(false);
+  const [scannerStarting, setScannerStarting] = useState(false);
   const [scannedText, setScannedText] = useState('');
   const [hasTorch, setHasTorch] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const [cameraRetry, setCameraRetry] = useState(0);
   const otpRefs = useRef([]);
   const scannerRef = useRef(null);
   const scanLockedRef = useRef(false);
@@ -211,15 +230,26 @@ export default function QRScanner() {
     scanLockedRef.current = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setScannerReady(false);
+    setScannerStarting(true);
     setScannerError('');
     setHasTorch(false);
     setTorchOn(false);
 
     const startScanner = async () => {
       try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error('MEDIA_DEVICES_UNAVAILABLE');
+        }
+        const permissionStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        });
+        permissionStream.getTracks().forEach((track) => track.stop());
+        if (cancelled) return;
+
         scanner = new Html5Qrcode('qr-reader', false);
         scannerRef.current = scanner;
-        await scanner.start(
+        const startPromise = scanner.start(
           { 
             facingMode: 'environment',
             width: { ideal: 1280 },
@@ -235,9 +265,14 @@ export default function QRScanner() {
           handleDecodedQr,
           () => {},
         );
+        await Promise.race([
+          startPromise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('CAMERA_START_TIMEOUT')), 8000)),
+        ]);
         
         if (!cancelled) {
           setScannerReady(true);
+          setScannerStarting(false);
           // Check for flashlight capability after stream is active
           setTimeout(() => {
             if (cancelled) return;
@@ -260,18 +295,21 @@ export default function QRScanner() {
       } catch (err) {
         console.error('[qr scanner]', err);
         if (!cancelled) {
-          setScannerError('Could not access camera. Open this page over HTTPS and allow camera permission.');
+          setScannerReady(false);
+          setScannerStarting(false);
+          setScannerError(cameraErrorMessage(err));
         }
       }
     };
 
-    const timer = setTimeout(startScanner, 200);
+    const timer = setTimeout(startScanner, cameraRetry ? 0 : 200);
 
     return () => {
       cancelled = true;
       clearTimeout(timer);
       scanLockedRef.current = false;
       setScannerReady(false);
+      setScannerStarting(false);
       setHasTorch(false);
       setTorchOn(false);
       if (scannerRef.current) {
@@ -281,7 +319,7 @@ export default function QRScanner() {
         });
       }
     };
-  }, [tab, handleDecodedQr]);
+  }, [tab, handleDecodedQr, cameraRetry]);
 
   return (
     <div className="bg-black text-on-primary h-screen w-screen overflow-hidden relative flex flex-col items-center justify-center">
@@ -306,19 +344,11 @@ export default function QRScanner() {
       <div 
         id="qr-reader" 
         className="absolute inset-0 z-0 bg-black" 
-        style={{ visibility: tab === 'qr' ? 'visible' : 'hidden' }}
+        style={{ display: tab === 'qr' ? 'block' : 'none' }}
       />
 
       {tab === 'otp' && (
-        <div
-          className="absolute inset-0 z-0 bg-cover bg-center"
-          style={{
-            backgroundImage:
-              "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAiO6yRIoEZUy0FrxtYWhhxxdgwoD5nZmECdx4plR3ThEhaGaxPggpBbXj_I3rAsLwgUSNINxZGd8CRS9XYYtXx2zmrtn6MgYiHO4gQyplEmHF1enxIY_bu925k2UsySnJUnK5j3Nlc7pkKFmk9KNl80AiB6SEZAUXpJHWxd8FbiEnr6tZx6_UOjckGSXxua0keF7PSRK7G8Pb-gQvBcIPwIgheiy5LLvrvGEd60DI7xyPhD0GuJi2DHXCw3NdcmsUAb4pZeZCTeJFk')",
-            filter: 'blur(2px) brightness(0.45) saturate(0.6)',
-            transform: 'scale(1.05)',
-          }}
-        />
+        <div className="absolute inset-0 z-0 bg-black" />
       )}
 
       <div className="absolute inset-0 z-10 pointer-events-none flex flex-col">
@@ -393,15 +423,16 @@ export default function QRScanner() {
             <p className="text-body-md text-white/70">Align the locker display QR code within the frame</p>
           </div>
 
-          {!scannerReady && !scannerError && (
-            <div className="absolute z-20 top-2/3 px-5 text-center text-label-md text-white/70 bg-black/40 py-3 rounded-xl backdrop-blur-md">
-              Starting camera...
-            </div>
-          )}
-
-          {scannerError && (
-            <div className="absolute z-20 top-2/3 px-6 text-center text-xs text-red-100 bg-red-900/70 py-3 rounded-xl backdrop-blur-md max-w-xs border border-red-500/30">
-              {scannerError}
+          {!scannerReady && (
+            <div className="absolute z-20 top-2/3 px-5 text-center text-label-md text-white/80 bg-black/50 py-4 rounded-xl backdrop-blur-md max-w-xs border border-white/10">
+              <div className="mb-3">{scannerError || (scannerStarting ? 'Starting camera...' : 'Camera is not running')}</div>
+              <button
+                type="button"
+                onClick={() => setCameraRetry((value) => value + 1)}
+                className="px-4 py-2 rounded-lg bg-white text-black text-label-md font-semibold active:scale-95 transition-all"
+              >
+                Start camera
+              </button>
             </div>
           )}
 
