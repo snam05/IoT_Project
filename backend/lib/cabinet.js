@@ -149,30 +149,40 @@ export async function rejectCabinet(cabinetId) {
 
 export async function deleteCabinet(cabinetId) {
   const id = Number(cabinetId);
-  return prisma.$transaction(async (tx) => {
-    const cabinet = await tx.cabinet.findUnique({
-      where: { id },
-      include: { lockers: true }
-    });
-    if (!cabinet) {
-      throw new Error('Cabinet not found');
-    }
+  const cabinet = await prisma.cabinet.findUnique({
+    where: { id },
+    include: { lockers: true }
+  });
+  if (!cabinet) {
+    throw new Error('Cabinet not found');
+  }
 
+  // 1. Physically unlock all compartments of this cabinet via MQTT before deletion
+  const { publishCommand } = await import('./mqtt.js');
+  for (const locker of cabinet.lockers) {
+    try {
+      await publishCommand(locker.lockerId, { action: 'unlock', method: 'admin' });
+    } catch (err) {
+      console.warn(`[deleteCabinet] Failed to publish unlock for ${locker.lockerId}:`, err.message);
+    }
+  }
+
+  return prisma.$transaction(async (tx) => {
     const lockerIds = cabinet.lockers.map(l => l.lockerId);
 
-    // 1. Delete all related locker logs
+    // 2. Delete all related locker logs
     if (lockerIds.length > 0) {
       await tx.lockerLog.deleteMany({
         where: { lockerId: { in: lockerIds } }
       });
     }
 
-    // 2. Delete all related OTP records
+    // 3. Delete all related OTP records
     await tx.otp.deleteMany({
       where: { lockerId: cabinet.identity }
     });
 
-    // 3. Delete all locker compartments
+    // 4. Delete all locker compartments
     await tx.locker.deleteMany({
       where: { cabinetId: id }
     });
@@ -196,7 +206,7 @@ function cacheRequestResult(requestId, result) {
 
 export async function createCabinetOtp(input) {
   const { requestId } = input || {};
-  
+
   // If this exact requestId was processed recently, return the exact same result immediately!
   if (requestId && processedRequestCache.has(requestId)) {
     return processedRequestCache.get(requestId);

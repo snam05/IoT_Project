@@ -226,22 +226,26 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
   String topicStr = String(topic);
 
   if (topicStr == topicRegistration()) {
-    cabinetStatus = jsonValue(message, "status");
+    String newStatus = jsonValue(message, "status");
     statusMessage = jsonValue(message, "message");
-    if (cabinetStatus == "APPROVED") {
-      // 1. Parse and apply initial states silently
-      String states = jsonValue(message, "states");
-      if (states.length() == COMPARTMENT_COUNT) {
-        for (int i = 0; i < COMPARTMENT_COUNT; i++) {
-          int pin = LOCK_PINS[i];
-          int val = (states[i] == '0') ? LOW : HIGH;
-          digitalWrite(pin, val);
-          Serial.printf("[Init State] Set compartment %d to %s (Pin %d)\n", i + 1, (val == LOW) ? "OPEN" : "LOCK", pin);
+    if (newStatus == "APPROVED") {
+      if (cabinetStatus != "APPROVED") {
+        cabinetStatus = "APPROVED";
+        // 1. Parse and apply initial states silently
+        String states = jsonValue(message, "states");
+        if (states.length() == COMPARTMENT_COUNT) {
+          for (int i = 0; i < COMPARTMENT_COUNT; i++) {
+            int pin = LOCK_PINS[i];
+            int val = (states[i] == '0') ? LOW : HIGH;
+            digitalWrite(pin, val);
+            Serial.printf("[Init State] Set compartment %d to %s (Pin %d)\n", i + 1, (val == LOW) ? "OPEN" : "LOCK", pin);
+          }
         }
+        // 2. Request OTP now that initial opening/closing is fully completed
+        requestOtp();
       }
-      // 2. Request OTP now that initial opening/closing is fully completed
-      requestOtp();
     } else {
+      cabinetStatus = newStatus;
       drawStatus(cabinetStatus, statusMessage);
     }
     return;

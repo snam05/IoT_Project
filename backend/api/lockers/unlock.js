@@ -129,16 +129,6 @@ export default async function handler(req, res) {
         } else {
           const availableLockers = cabinet.lockers.filter(l => l.status === 'AVAILABLE');
           if (availableLockers.length === 0) {
-            const { publishCabinetOtp } = await import('../../lib/mqtt.js');
-            try {
-              await publishCabinetOtp(cabinet.cabinetCode, {
-                status: 'CABINET FULL',
-                message: 'No empty lockers!',
-              });
-            } catch (mqttErr) {
-              console.warn('[unlock] Failed to publish FULL status to MQTT:', mqttErr.message);
-            }
-
             return res.status(409).json({ error: 'Cabinet is full. No available lockers.' });
           }
 
