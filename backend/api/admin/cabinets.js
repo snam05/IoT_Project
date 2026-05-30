@@ -78,6 +78,16 @@ export default async function handler(req, res) {
             console.warn(`[admin/cabinets ${action}] failed for ${locker.lockerId}:`, err.message);
           }
 
+          // Clear user and set status to AVAILABLE in database
+          await prisma.locker.update({
+            where: { id: locker.id },
+            data: {
+              status: 'AVAILABLE',
+              userId: null,
+              lockedAt: null,
+            },
+          });
+
           await prisma.lockerLog.create({
             data: { lockerId: locker.lockerId, userId: payload.userId, action: commandAction, method: 'admin' },
           });

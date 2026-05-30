@@ -81,21 +81,27 @@ export default async function handler(req, res) {
     }
 
     try {
+      const dataUpdate = {
+        ...(status ? { status } : {}),
+        ...((status === 'AVAILABLE' || status === 'MAINTENANCE') ? { userId: null, lockedAt: null } : {}),
+      };
+
       const locker = await prisma.locker.update({
         where: { lockerId },
-        data: {
-          ...(status ? { status } : {}),
-          ...(status === 'AVAILABLE' ? { userId: null, lockedAt: null } : {}),
-        },
+        data: dataUpdate,
       });
 
-      // If status is changed to MAINTENANCE, automatically lock!
+      // Auto-resolve physical action based on transition:
+      // - Status -> AVAILABLE (Unlock / Restore): physically unlock (LOW)
+      // - Status -> MAINTENANCE: physically lock (HIGH)
       let resolvedAction = action;
-      if (status === 'MAINTENANCE') {
+      if (status === 'AVAILABLE') {
+        resolvedAction = 'unlock';
+      } else if (status === 'MAINTENANCE') {
         resolvedAction = 'lock';
       }
 
-      // If admin is locking/unlocking, publish MQTT
+      // If resolved action is lock or unlock, publish MQTT
       if (resolvedAction === 'lock' || resolvedAction === 'unlock') {
         try {
           await publishCommand(lockerId, { action: resolvedAction, method: 'admin', userId: payload.userId });
