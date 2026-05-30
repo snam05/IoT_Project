@@ -100,36 +100,61 @@ void drawStatus(String title, String detail) {
 
 void prepareQr(String payload) {
   if (!payload.length()) payload = currentCode;
-  qrcode_initText(&qrcode, qrcodeBytes, 2, ECC_LOW, payload.c_str());
+  qrcode_initText(&qrcode, qrcodeBytes, 1, ECC_LOW, payload.c_str());
 }
 
 void drawOtpScreen() {
   unsigned long elapsed = millis() - codeStartedAt;
-  int progressWidth = elapsed >= OTP_INTERVAL ? 0 : map(OTP_INTERVAL - elapsed, 0, OTP_INTERVAL, 0, 128);
+  int progressWidth = elapsed >= OTP_INTERVAL ? 0 : map(OTP_INTERVAL - elapsed, 0, OTP_INTERVAL, 0, 56);
 
   display.clear();
   display.setColor(WHITE);
+  
+  // 1. Header: Elegant Cabinet Code & Status
   display.setFont(ArialMT_Plain_10);
-  display.setTextAlignment(TEXT_ALIGN_CENTER);
-  display.drawString(64, 0, cabinetIdentity);
-  display.fillRect(0, 12, progressWidth, 3);
-  display.drawVerticalLine(63, 16, 48);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(6, 0, "CABINET: " + String(CABINET_CODE));
+  
+  display.setTextAlignment(TEXT_ALIGN_RIGHT);
+  display.drawString(122, 0, "ONLINE");
 
-  display.fillRect(4, 14, 54, 50);
+  // Header Divider
+  display.drawHorizontalLine(0, 12, 128);
+
+  // 2. Left Side: Perfect QR Code (Version 1, 21x21 modules -> 42x42 pixels)
+  // Center it vertically in the remaining space (y = 15 to 61)
+  // White quiet zone background: x = 6 to 52 (width 46), y = 15 to 61 (height 46)
+  display.fillRect(6, 15, 46, 46);
+  
   display.setColor(BLACK);
   for (uint8_t y = 0; y < qrcode.size; y++) {
     for (uint8_t x = 0; x < qrcode.size; x++) {
       if (qrcode_getModule(&qrcode, x, y)) {
-        display.fillRect(6 + (x * 2), 14 + (y * 2), 2, 2);
+        display.fillRect(8 + (x * 2), 17 + (y * 2), 2, 2);
       }
     }
   }
 
+  // 3. Right Side: Clean vertical divider and beautiful OTP code
   display.setColor(WHITE);
-  display.setFont(ArialMT_Plain_24);
+  display.drawVerticalLine(58, 16, 44);
+
+  // OTP label
+  display.setFont(ArialMT_Plain_10);
   display.setTextAlignment(TEXT_ALIGN_CENTER);
-  display.drawString(95, 14, currentCode.substring(0, 3));
-  display.drawString(95, 38, currentCode.substring(3, 6));
+  display.drawString(93, 16, "OTP CODE");
+
+  // OTP 6-digit number on one line (formatted as XXX XXX for readability)
+  display.setFont(ArialMT_Plain_16);
+  String formattedOtp = currentCode.substring(0, 3) + " " + currentCode.substring(3, 6);
+  display.drawString(93, 28, formattedOtp);
+
+  // Sleek remaining time progress bar at the bottom right
+  display.drawRect(65, 48, 56, 4);
+  if (progressWidth > 0) {
+    display.fillRect(65, 48, progressWidth, 4);
+  }
+
   display.display();
 }
 

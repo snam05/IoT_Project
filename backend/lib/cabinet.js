@@ -169,6 +169,6 @@ export async function createCabinetOtp(input) {
     code,
     expiresAt,
     expiresIn: 30,
-    qrPayload: `${hello.cabinet.cabinetCode}:${code}`,
+    qrPayload: code,
   };
 }
