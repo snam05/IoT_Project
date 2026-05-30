@@ -142,6 +142,7 @@ export default function QRScanner() {
     let cancelled = false;
     let scanner;
     scanLockedRef.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setScannerReady(false);
     setScannerError('');
 

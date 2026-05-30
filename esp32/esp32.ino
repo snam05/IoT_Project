@@ -63,7 +63,7 @@ void showTemporaryStatus(String title, String detail) {
 }
 
 QRCode qrcode;
-uint8_t qrcodeBytes[64];
+uint8_t qrcodeBytes[128];
 
 String topicHello() { return "lockersystem/cabinet/" + String(CABINET_CODE) + "/hello"; }
 String topicRegistration() { return "lockersystem/cabinet/" + String(CABINET_CODE) + "/registration"; }
@@ -100,7 +100,7 @@ void drawStatus(String title, String detail) {
 
 void prepareQr(String payload) {
   if (!payload.length()) payload = currentCode;
-  qrcode_initText(&qrcode, qrcodeBytes, 1, ECC_LOW, payload.c_str());
+  qrcode_initText(&qrcode, qrcodeBytes, 2, ECC_LOW, payload.c_str());
 }
 
 void drawOtpScreen() {
@@ -115,12 +115,12 @@ void drawOtpScreen() {
   display.fillRect(0, 12, progressWidth, 3);
   display.drawVerticalLine(63, 16, 48);
 
-  display.fillRect(5, 15, 48, 48);
+  display.fillRect(4, 14, 54, 50);
   display.setColor(BLACK);
   for (uint8_t y = 0; y < qrcode.size; y++) {
     for (uint8_t x = 0; x < qrcode.size; x++) {
       if (qrcode_getModule(&qrcode, x, y)) {
-        display.fillRect(8 + (x * 2), 18 + (y * 2), 2, 2);
+        display.fillRect(6 + (x * 2), 14 + (y * 2), 2, 2);
       }
     }
   }
