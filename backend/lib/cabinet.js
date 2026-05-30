@@ -153,6 +153,11 @@ export async function createCabinetOtp(input) {
   const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
   const expiresAt = new Date(Date.now() + 30_000);
 
+  // Delete all existing OTPs for this cabinet to prevent database bloating
+  await prisma.otp.deleteMany({
+    where: { lockerId: hello.cabinet.identity }
+  });
+
   await prisma.otp.create({
     data: {
       code,

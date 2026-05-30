@@ -105,55 +105,44 @@ void prepareQr(String payload) {
 
 void drawOtpScreen() {
   unsigned long elapsed = millis() - codeStartedAt;
-  int progressWidth = elapsed >= OTP_INTERVAL ? 0 : map(OTP_INTERVAL - elapsed, 0, OTP_INTERVAL, 0, 56);
+  int progressWidth = elapsed >= OTP_INTERVAL ? 0 : map(OTP_INTERVAL - elapsed, 0, OTP_INTERVAL, 0, 128);
 
   display.clear();
   display.setColor(WHITE);
   
-  // 1. Header: Elegant Cabinet Code & Status
+  // 1. Header: Elegant Cabinet Code centered in Yellow Region
   display.setFont(ArialMT_Plain_10);
-  display.setTextAlignment(TEXT_ALIGN_LEFT);
-  display.drawString(6, 0, "CABINET: " + String(CABINET_CODE));
-  
-  display.setTextAlignment(TEXT_ALIGN_RIGHT);
-  display.drawString(122, 0, "ONLINE");
+  display.setTextAlignment(TEXT_ALIGN_CENTER);
+  display.drawString(64, 0, cabinetIdentity);
 
-  // Header Divider
-  display.drawHorizontalLine(0, 12, 128);
+  // Progress Bar in Yellow Region (y = 12, height = 3)
+  if (progressWidth > 0) {
+    display.fillRect(0, 12, progressWidth, 3);
+  }
 
-  // 2. Left Side: Perfect QR Code (Version 1, 21x21 modules -> 42x42 pixels)
-  // Center it vertically in the remaining space (y = 15 to 61)
-  // White quiet zone background: x = 6 to 52 (width 46), y = 15 to 61 (height 46)
-  display.fillRect(6, 15, 46, 46);
+  // 2. Left Half (x = 0 to 63): Perfect Symmetrical QR Code (Version 1, 21x21 modules -> 42x42 pixels)
+  // Center of left half is x = 32. QR code is 42x42 pixels.
+  // White quiet zone background: x = 9 to 55 (width 46), y = 16 to 62 (height 46)
+  display.fillRect(9, 16, 46, 46);
   
   display.setColor(BLACK);
   for (uint8_t y = 0; y < qrcode.size; y++) {
     for (uint8_t x = 0; x < qrcode.size; x++) {
       if (qrcode_getModule(&qrcode, x, y)) {
-        display.fillRect(8 + (x * 2), 17 + (y * 2), 2, 2);
+        display.fillRect(11 + (x * 2), 18 + (y * 2), 2, 2);
       }
     }
   }
 
-  // 3. Right Side: Clean vertical divider and beautiful OTP code
+  // 3. Right Half (x = 64 to 127): Symmetrical stacked OTP code (3 on top, 3 below)
   display.setColor(WHITE);
-  display.drawVerticalLine(58, 16, 44);
+  display.drawVerticalLine(63, 16, 48);
 
-  // OTP label
-  display.setFont(ArialMT_Plain_10);
+  // OTP 6-digit number displayed as 3 digits on top, 3 digits below, centered exactly at x = 96
+  display.setFont(ArialMT_Plain_24);
   display.setTextAlignment(TEXT_ALIGN_CENTER);
-  display.drawString(93, 16, "OTP CODE");
-
-  // OTP 6-digit number on one line (formatted as XXX XXX for readability)
-  display.setFont(ArialMT_Plain_16);
-  String formattedOtp = currentCode.substring(0, 3) + " " + currentCode.substring(3, 6);
-  display.drawString(93, 28, formattedOtp);
-
-  // Sleek remaining time progress bar at the bottom right
-  display.drawRect(65, 48, 56, 4);
-  if (progressWidth > 0) {
-    display.fillRect(65, 48, progressWidth, 4);
-  }
+  display.drawString(96, 16, currentCode.substring(0, 3));
+  display.drawString(96, 39, currentCode.substring(3, 6));
 
   display.display();
 }
@@ -211,11 +200,15 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
       if (action == "unlock") {
         digitalWrite(pin, LOW); // Mở khóa (LOW)
         Serial.printf("[Lock Control] Unlocked compartment %d (Pin %d)\n", compNo, pin);
-        showTemporaryStatus("OPENED", "Compartment " + compStr + " is opened");
+        if (millis() > 5000) {
+          showTemporaryStatus("OPENED", "Compartment " + compStr + " is opened");
+        }
       } else if (action == "lock") {
         digitalWrite(pin, HIGH); // Khóa (HIGH)
         Serial.printf("[Lock Control] Locked compartment %d (Pin %d)\n", compNo, pin);
-        showTemporaryStatus("CLOSED", "Compartment " + compStr + " is closed");
+        if (millis() > 5000) {
+          showTemporaryStatus("CLOSED", "Compartment " + compStr + " is closed");
+        }
       }
     }
   }
@@ -285,8 +278,6 @@ void loop() {
       isTempDisplayActive = false;
       cabinetStatus = "APPROVED";
       requestOtp();
-    } else {
-      drawStatus(tempDisplayTitle, tempDisplayDetail);
     }
   } else {
     if (mqtt.connected() && now - lastHello >= HELLO_INTERVAL && cabinetStatus != "APPROVED") {
