@@ -102,6 +102,18 @@ export default function AdminCabinetsTab() {
                   <td className="px-4 py-3 text-on-surface-variant">{cabinet._count?.lockers || 0}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
+                      {cabinet.status === 'APPROVED' && (
+                        <>
+                          <button onClick={() => update(cabinet.id, 'unlock_all')} disabled={busyId === cabinet.id}
+                            className="px-3 py-1 rounded-lg bg-teal-100 text-teal-700 text-xs font-semibold hover:bg-teal-200 active:scale-95 transition-all disabled:opacity-50">
+                            Mở Toàn Bộ
+                          </button>
+                          <button onClick={() => update(cabinet.id, 'lock_all')} disabled={busyId === cabinet.id}
+                            className="px-3 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50">
+                            Khóa Toàn Bộ
+                          </button>
+                        </>
+                      )}
                       {cabinet.status !== 'APPROVED' && (
                         <button onClick={() => update(cabinet.id, 'approve')} disabled={busyId === cabinet.id}
                           className="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50">

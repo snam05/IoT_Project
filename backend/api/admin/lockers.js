@@ -89,19 +89,25 @@ export default async function handler(req, res) {
         },
       });
 
+      // If status is changed to MAINTENANCE, automatically lock!
+      let resolvedAction = action;
+      if (status === 'MAINTENANCE') {
+        resolvedAction = 'lock';
+      }
+
       // If admin is locking/unlocking, publish MQTT
-      if (action === 'lock' || action === 'unlock') {
+      if (resolvedAction === 'lock' || resolvedAction === 'unlock') {
         try {
-          await publishCommand(lockerId, { action, method: 'admin', userId: payload.userId });
+          await publishCommand(lockerId, { action: resolvedAction, method: 'admin', userId: payload.userId });
         } catch {/* non-critical */}
 
         await prisma.lockerLog.create({
-          data: { lockerId, userId: payload.userId, action, method: 'admin' },
+          data: { lockerId, userId: payload.userId, action: resolvedAction, method: 'admin' },
         });
       }
 
       await prisma.systemLog.create({
-        data: { userId: payload.userId, action: 'update_locker', details: `${lockerId}: ${JSON.stringify({ status, action })}` },
+        data: { userId: payload.userId, action: 'update_locker', details: `${lockerId}: ${JSON.stringify({ status, action: resolvedAction })}` },
       });
 
       return res.status(200).json({ success: true, lockerId, status: locker.status });

@@ -172,6 +172,16 @@ function LockersTab() {
                           Restore
                         </button>
                       )}
+                      <button onClick={() => updateStatus(l.lockerId, l.status, 'unlock')}
+                        disabled={actionLoading===l.lockerId}
+                        className="px-3 py-1 rounded-lg border border-teal-200 text-teal-700 text-xs font-semibold hover:bg-teal-50 active:scale-95 transition-all disabled:opacity-50">
+                        Mở
+                      </button>
+                      <button onClick={() => updateStatus(l.lockerId, l.status, 'lock')}
+                        disabled={actionLoading===l.lockerId}
+                        className="px-3 py-1 rounded-lg border border-amber-200 text-amber-700 text-xs font-semibold hover:bg-amber-50 active:scale-95 transition-all disabled:opacity-50">
+                        Khóa
+                      </button>
                     </div>
                   </td>
                 </tr>
