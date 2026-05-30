@@ -175,8 +175,8 @@ export default function QRScanner() {
         await scanner.start(
           { 
             facingMode: 'environment',
-            width: { min: 640, ideal: 1280, max: 1920 },
-            height: { min: 480, ideal: 720, max: 1080 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           },
           { 
             fps: 25, 
@@ -259,7 +259,7 @@ export default function QRScanner() {
       <div 
         id="qr-reader" 
         className="absolute inset-0 z-0 bg-black" 
-        style={{ display: tab === 'qr' ? 'block' : 'none' }}
+        style={{ visibility: tab === 'qr' ? 'visible' : 'hidden' }}
       />
 
       {tab === 'otp' && (
@@ -327,7 +327,7 @@ export default function QRScanner() {
           ].map(({ key, icon, label }) => (
             <button
               key={key}
-              onClick={() => { setTab(key); setResult(null); setScannerError(''); }}
+              onClick={() => { setTab(key); setResult(null); setScannerError(''); setOtpDigits(['', '', '', '', '', '']); }}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-label-md font-semibold transition-all duration-200 ${
                 tab === key ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:text-white'
               }`}
@@ -391,7 +391,6 @@ export default function QRScanner() {
                 ref={(el) => (otpRefs.current[i] = el)}
                 type="text"
                 inputMode="numeric"
-                maxLength={1}
                 value={digit}
                 onChange={(e) => handleOtpInput(i, e.target.value)}
                 onKeyDown={(e) => handleOtpKeyDown(i, e)}
