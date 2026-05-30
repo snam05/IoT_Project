@@ -172,7 +172,7 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
     if (currentCode.length() == 6) {
       cabinetStatus = "APPROVED";
       codeStartedAt = millis();
-      prepareQr(currentCode);
+      prepareQr(currentQrPayload.length() ? currentQrPayload : currentCode);
       drawOtpScreen();
     }
   }
