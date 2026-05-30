@@ -1,6 +1,5 @@
 import prisma from '../../lib/prisma.js';
 import { requireAuth } from '../../lib/auth.js';
-import { verifyTotp } from '../../lib/otp.js';
 import { publishCommand } from '../../lib/mqtt.js';
 
 /**

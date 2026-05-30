@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import prisma from '../../lib/prisma.js';
 import { requireAdmin } from '../../lib/auth.js';
 import { generateTotpSecret } from '../../lib/otp.js';
@@ -39,7 +38,11 @@ export default async function handler(req, res) {
         prisma.locker.count({ where }),
       ]);
       // Don't expose totpSecret to frontend
-      const safe = lockers.map(({ totpSecret: _, ...l }) => l);
+      const safe = lockers.map((locker) => {
+        const copy = { ...locker };
+        delete copy.totpSecret;
+        return copy;
+      });
       return res.status(200).json({ lockers: safe, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
     } catch (err) {
       console.error('[admin/lockers GET]', err);

@@ -38,7 +38,7 @@ SSD1306Wire display(0x3c, OLED_SDA, OLED_SCL);
 const unsigned long OTP_INTERVAL = 30000;
 const unsigned long HELLO_INTERVAL = 15000;
 const unsigned long RECONNECT_INTERVAL = 3000;
-const unsigned long DISPLAY_REFRESH_INTERVAL = 500;
+const unsigned long DISPLAY_REFRESH_INTERVAL = 1000;
 const unsigned long DUPLICATE_OTP_WINDOW = 30000;
 
 String cabinetIdentity;
@@ -50,7 +50,10 @@ unsigned long lastOtpRequest = 0;
 unsigned long lastHello = 0;
 unsigned long lastReconnectAttempt = 0;
 unsigned long lastDisplayRefresh = 0;
+unsigned long otpRequestSeq = 0;
 String lastProcessedMsgId = "";
+String lastOtpRequestId = "";
+bool otpRequestPending = false;
 unsigned long codeStartedAt = 0;
 String lastRenderedStatusTitle = "";
 String lastRenderedStatusDetail = "";
@@ -199,7 +202,10 @@ void requestOtp() {
     Serial.println("[OTP] Ignored duplicate OTP request (debounced)");
     return;
   }
-  String payload = "{\"cabinetCode\":\"" + String(CABINET_CODE) + "\",\"compartmentCount\":" + String(COMPARTMENT_COUNT) + ",\"identity\":\"" + cabinetIdentity + "\"}";
+  otpRequestSeq++;
+  lastOtpRequestId = String(CABINET_CODE) + "-" + String((uint32_t)ESP.getEfuseMac(), HEX) + "-" + String(otpRequestSeq);
+  otpRequestPending = true;
+  String payload = "{\"cabinetCode\":\"" + String(CABINET_CODE) + "\",\"compartmentCount\":" + String(COMPARTMENT_COUNT) + ",\"identity\":\"" + cabinetIdentity + "\",\"requestId\":\"" + lastOtpRequestId + "\"}";
   mqtt.publish(topicOtpRequest().c_str(), payload.c_str(), false);
   lastOtpRequest = now;
 }
@@ -240,6 +246,12 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
       return;
     }
 
+    String responseRequestId = jsonValue(message, "requestId");
+    if (!otpRequestPending || responseRequestId != lastOtpRequestId) {
+      Serial.println("[OTP] Ignored stale OTP response");
+      return;
+    }
+
     String nextCode = jsonValue(message, "code");
     String nextQrPayload = jsonValue(message, "qrPayload");
     bool duplicateActiveOtp =
@@ -255,6 +267,7 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
     currentCode = nextCode;
     currentQrPayload = nextQrPayload;
     if (currentCode.length() == 6) {
+      otpRequestPending = false;
       cabinetStatus = "APPROVED";
       codeStartedAt = millis();
       lastRenderedOtpCode = "";
@@ -368,6 +381,9 @@ void loop() {
     }
     if (mqtt.connected() && cabinetStatus == "APPROVED" && now - lastOtpRequest >= OTP_INTERVAL) {
       requestOtp();
+    }
+    if (cabinetStatus == "APPROVED" && currentCode.length() == 6) {
+      drawOtpScreen();
     }
   }
   delay(100);

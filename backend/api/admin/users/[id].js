@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       });
       if (!user) return res.status(404).json({ error: 'User not found' });
       return res.status(200).json(user);
-    } catch (err) {
+    } catch {
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
         },
       });
       return res.status(200).json({ success: true, user });
-    } catch (err) {
+    } catch {
       return res.status(500).json({ error: 'Internal server error' });
     }
   }

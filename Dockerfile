@@ -13,6 +13,10 @@ COPY backend ./backend
 COPY frontend ./frontend
 RUN npm run build
 
+FROM deps AS prod-deps
+WORKDIR /app
+RUN npm prune --omit=dev && npm cache clean --force
+
 FROM node:24-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -22,8 +26,7 @@ RUN apt-get update -y \
   && rm -rf /var/lib/apt/lists/*
 COPY package*.json prisma.config.ts ./
 COPY prisma ./prisma
-RUN DATABASE_URL="mysql://dummy:dummy@localhost:3306/dummy?ssl=false" npm ci --omit=dev && npm cache clean --force
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY backend ./backend
 EXPOSE 3000

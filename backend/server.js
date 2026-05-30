@@ -176,7 +176,7 @@ async function handleStatic(req, res, url) {
   }
 }
 
-const server = createServer(async (req, res) => {
+export const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   try {
     if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
@@ -193,10 +193,16 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(port, '0.0.0.0', () => {
-  console.log(`[server] listening on 0.0.0.0:${port}`);
-});
+export function startServer() {
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`[server] listening on 0.0.0.0:${port}`);
+  });
 
-if (process.env.MQTT_WORKER_ENABLED !== 'false') {
-  startMqttWorker();
+  if (process.env.MQTT_WORKER_ENABLED !== 'false') {
+    startMqttWorker();
+  }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  startServer();
 }

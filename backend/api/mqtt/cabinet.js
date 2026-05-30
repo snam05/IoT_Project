@@ -40,6 +40,7 @@ async function handleOtpRequest(body) {
       message: result.message,
       cabinetCode,
       identity: result.cabinet?.identity || result.receivedIdentity,
+      requestId: body.requestId,
       code: result.code,
       qrPayload: result.qrPayload,
       expiresIn: result.expiresIn,

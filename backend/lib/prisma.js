@@ -4,7 +4,16 @@ import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
 // Parse DATABASE_URL: mysql://user:pass@host:port/dbname
 function parseUrl(url) {
+  if (!url) {
+    throw new Error('DATABASE_URL is required. Set it to a MySQL/MariaDB connection string before starting the server.');
+  }
   const u = new URL(url);
+  if (!['mysql:', 'mariadb:'].includes(u.protocol)) {
+    throw new Error('DATABASE_URL must use mysql:// or mariadb:// protocol.');
+  }
+  if (!u.hostname || !u.pathname.slice(1)) {
+    throw new Error('DATABASE_URL must include host and database name.');
+  }
   return {
     host: u.hostname,
     port: parseInt(u.port) || 4000,

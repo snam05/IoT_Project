@@ -16,7 +16,7 @@
     "mqtt:worker": "node backend/mqtt-worker.js",
     "dev:frontend": "vite --config frontend/vite.config.js --host 0.0.0.0",
     "dev:backend": "node backend/server.js",
-    "start": "prisma db push --accept-data-loss && node backend/server.js",
+    "start": "prisma db push && node backend/server.js",
     "start:server": "node backend/server.js"
   },
   "prisma": {

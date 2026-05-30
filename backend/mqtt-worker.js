@@ -63,6 +63,7 @@ export function startMqttWorker() {
       message: result.message,
       cabinetCode,
       identity: result.cabinet?.identity || result.receivedIdentity,
+      requestId: message.requestId,
       code: result.code,
       qrPayload: result.qrPayload,
       expiresIn: result.expiresIn,
