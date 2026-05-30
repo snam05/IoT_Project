@@ -28,8 +28,7 @@ const char* CABINET_CODE = "TEST_CABINET"; // manually assigned unique cabinet c
 const int COMPARTMENT_COUNT = 8;        // compartments are numbered 1..N
 const int LOCK_PINS[COMPARTMENT_COUNT] = {15, 2, 4, 16, 17, 5, 18, 19};
 
-// For production, replace setInsecure() with your broker root CA.
-WiFiClientSecure wifiClient;
+WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
 #define OLED_SDA 21
@@ -103,7 +102,7 @@ void drawOtpScreen() {
   display.fillRect(0, 12, progressWidth, 3);
   display.drawVerticalLine(63, 16, 48);
 
-  display.fillRect(6, 17, 54, 46);
+  display.fillRect(5, 15, 48, 48);
   display.setColor(BLACK);
   for (uint8_t y = 0; y < qrcode.size; y++) {
     for (uint8_t x = 0; x < qrcode.size; x++) {
@@ -226,7 +225,6 @@ void setup() {
   display.flipScreenVertically();
   drawStatus("SMART LOCKER", cabinetIdentity);
 
-  wifiClient.setInsecure();
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setCallback(onMqttMessage);
   mqtt.setBufferSize(512);
