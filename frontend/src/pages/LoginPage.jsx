@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { useLocation, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
@@ -142,7 +142,10 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-label-md text-on-surface-variant mt-6">
-          Smart Locker Management System
+          Don't have an account?{' '}
+          <Link to="/register" className="text-secondary font-semibold hover:underline">
+            Sign Up
+          </Link>
         </p>
       </div>
     </div>

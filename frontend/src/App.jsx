@@ -10,6 +10,7 @@ import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import SupportPage from './pages/SupportPage';
 import DocumentationPage from './pages/DocumentationPage';
+import RegisterPage from './pages/RegisterPage';
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           {/* Public */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/support" element={<SupportPage />} />

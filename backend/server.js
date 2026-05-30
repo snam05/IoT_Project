@@ -9,6 +9,7 @@ import { startMqttWorker } from './mqtt-worker.js';
 import authLogin from './api/auth/login.js';
 import authLogout from './api/auth/logout.js';
 import authMe from './api/auth/me.js';
+import authRegister from './api/auth/register.js';
 import profile from './api/profile.js';
 import lockers from './api/lockers.js';
 import stats from './api/stats.js';
@@ -31,6 +32,7 @@ const routes = [
   ['POST', /^\/api\/auth\/login\/?$/, authLogin],
   ['POST', /^\/api\/auth\/logout\/?$/, authLogout],
   ['GET', /^\/api\/auth\/me\/?$/, authMe],
+  ['POST', /^\/api\/auth\/register\/?$/, authRegister],
   ['GET|PUT', /^\/api\/profile\/?$/, profile],
   ['GET', /^\/api\/lockers\/?$/, lockers],
   ['GET', /^\/api\/stats\/?$/, stats],

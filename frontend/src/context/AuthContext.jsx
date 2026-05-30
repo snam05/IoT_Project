@@ -40,12 +40,25 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const register = useCallback(async (username, email, name, password) => {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, name, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
+    setUser(data.user);
+    return data.user;
+  }, []);
+
   const updateUser = useCallback((patch) => {
     setUser((current) => (current ? { ...current, ...patch } : current));
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
