@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import TopNavBar from '../components/TopNavBar';
 import Footer from '../components/Footer';
+import { useAuth } from '../context/AuthContext';
 
 const features = [
   {
@@ -51,12 +52,19 @@ function FeatureCard({ icon, title, description, colSpan }) {
 }
 
 export default function LandingPage() {
+  const { user } = useAuth();
+  const primaryAction = user?.role === 'ADMIN'
+    ? { to: '/dashboard', label: 'Open Dashboard' }
+    : user
+      ? { to: '/scan', label: 'Scan QR Code' }
+      : { to: '/login', label: 'Login' };
+
   return (
     <div className="bg-background text-on-surface antialiased">
       <TopNavBar />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-section-padding px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto text-center">
+      <section className="pt-40 pb-section-padding px-margin-mobile md:px-margin-desktop md:pt-32 max-w-container-max mx-auto text-center">
         <h1 className="font-bold text-primary mb-6 text-display-lg-mobile md:text-display-lg leading-[1.1] tracking-tight">
           Personal storage,<br />redefined.
         </h1>
@@ -66,19 +74,21 @@ export default function LandingPage() {
         </p>
 
         <div className="flex flex-col sm:flex-row justify-center gap-4 mb-16">
-          <Link to="/dashboard">
+          <Link to={primaryAction.to}>
             <button className="bg-primary text-on-primary text-body-md font-semibold px-8 py-4 rounded-full hover:opacity-90 transition-all active:scale-95 shadow-cta w-full sm:w-auto">
-              Explore Now
+              {primaryAction.label}
             </button>
           </Link>
-          <Link to="/scan">
-            <button className="text-secondary text-body-md font-semibold px-8 py-4 rounded-full hover:bg-surface-variant transition-colors active:scale-95 flex items-center justify-center gap-2 w-full sm:w-auto">
-              Scan QR Code{' '}
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                arrow_forward
-              </span>
-            </button>
-          </Link>
+          {user?.role !== 'ADMIN' && (
+            <Link to="/scan">
+              <button className="text-secondary text-body-md font-semibold px-8 py-4 rounded-full hover:bg-surface-variant transition-colors active:scale-95 flex items-center justify-center gap-2 w-full sm:w-auto">
+                Scan QR Code
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                  arrow_forward
+                </span>
+              </button>
+            </Link>
+          )}
         </div>
 
         {/* Hero Image */}

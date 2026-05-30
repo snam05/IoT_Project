@@ -76,22 +76,89 @@ export default {
         "margin-desktop": "40px",
       },
       fontFamily: {
-        "body-lg": ["Inter", "sans-serif"],
-        "body-md": ["Inter", "sans-serif"],
-        "headline-xl": ["Inter", "sans-serif"],
-        "headline-md": ["Inter", "sans-serif"],
-        "display-lg-mobile": ["Inter", "sans-serif"],
-        "display-lg": ["Inter", "sans-serif"],
-        "label-md": ["Inter", "sans-serif"],
+        sans: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "\"SF Pro Text\"",
+          "\"SF Pro Display\"",
+          "\"SF Pro Icons\"",
+          "\"Helvetica Neue\"",
+          "Helvetica",
+          "Arial",
+          "sans-serif"
+        ],
+        "body-lg": [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "\"SF Pro Text\"",
+          "\"Helvetica Neue\"",
+          "Helvetica",
+          "Arial",
+          "sans-serif"
+        ],
+        "body-md": [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "\"SF Pro Text\"",
+          "\"Helvetica Neue\"",
+          "Helvetica",
+          "Arial",
+          "sans-serif"
+        ],
+        "headline-xl": [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "\"SF Pro Display\"",
+          "\"Helvetica Neue\"",
+          "Helvetica",
+          "Arial",
+          "sans-serif"
+        ],
+        "headline-md": [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "\"SF Pro Display\"",
+          "\"Helvetica Neue\"",
+          "Helvetica",
+          "Arial",
+          "sans-serif"
+        ],
+        "display-lg-mobile": [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "\"SF Pro Display\"",
+          "\"Helvetica Neue\"",
+          "Helvetica",
+          "Arial",
+          "sans-serif"
+        ],
+        "display-lg": [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "\"SF Pro Display\"",
+          "\"Helvetica Neue\"",
+          "Helvetica",
+          "Arial",
+          "sans-serif"
+        ],
+        "label-md": [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "\"SF Pro Text\"",
+          "\"Helvetica Neue\"",
+          "Helvetica",
+          "Arial",
+          "sans-serif"
+        ],
       },
       fontSize: {
-        "body-lg": ["19px", { lineHeight: "1.5", letterSpacing: "-0.01em", fontWeight: "400" }],
-        "body-md": ["16px", { lineHeight: "1.5", fontWeight: "400" }],
-        "headline-xl": ["32px", { lineHeight: "1.2", letterSpacing: "-0.01em", fontWeight: "600" }],
-        "headline-md": ["24px", { lineHeight: "1.3", fontWeight: "600" }],
-        "display-lg-mobile": ["40px", { lineHeight: "1.1", letterSpacing: "-0.01em", fontWeight: "700" }],
-        "display-lg": ["56px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "700" }],
-        "label-md": ["12px", { lineHeight: "1.2", letterSpacing: "0.05em", fontWeight: "600" }],
+        "body-lg": ["17px", { lineHeight: "1.5", letterSpacing: "-0.015em", fontWeight: "400" }],
+        "body-md": ["15px", { lineHeight: "1.45", letterSpacing: "-0.01em", fontWeight: "400" }],
+        "headline-xl": ["24px", { lineHeight: "1.3", letterSpacing: "-0.021em", fontWeight: "600" }],
+        "headline-md": ["20px", { lineHeight: "1.35", letterSpacing: "-0.018em", fontWeight: "600" }],
+        "display-lg-mobile": ["28px", { lineHeight: "1.25", letterSpacing: "-0.024em", fontWeight: "700" }],
+        "display-lg": ["44px", { lineHeight: "1.15", letterSpacing: "-0.03em", fontWeight: "700" }],
+        "label-md": ["13px", { lineHeight: "1.35", letterSpacing: "-0.008em", fontWeight: "600" }],
       },
       maxWidth: {
         "container-max": "1200px",

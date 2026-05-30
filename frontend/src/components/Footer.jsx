@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 const legalLinks = [
   { label: 'Privacy Policy', to: '#' },
   { label: 'Terms of Service', to: '#' },
-  { label: 'Cookie Settings', to: '#' },
 ];
 
 const supportLinks = [

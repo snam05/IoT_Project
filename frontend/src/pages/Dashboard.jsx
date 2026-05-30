@@ -407,7 +407,7 @@ export default function Dashboard() {
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
       <TopNavBar />
-      <main className="pt-24 pb-section-padding px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
+      <main className="pt-36 pb-section-padding px-margin-mobile md:px-margin-desktop md:pt-24 max-w-container-max mx-auto">
         <header className="mb-8">
           <h1 className="text-display-lg text-primary font-bold mb-1">Admin Dashboard</h1>
           <p className="text-body-lg text-on-surface-variant">Manage lockers, users, and monitor system activity</p>
