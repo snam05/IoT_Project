@@ -50,6 +50,7 @@ export async function publishCommand(lockerId, payload, timeout = 6000) {
   return publishTopic(topic, {
     ...payload,
     lockerId,
+    msgId: String(Date.now()) + "-" + String(Math.floor(Math.random() * 1000)),
     ...(parsed ? { cabinetCode: parsed.cabinetCode, compartmentNo: parsed.compartmentNo } : {}),
   }, timeout);
 }

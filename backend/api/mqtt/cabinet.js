@@ -12,6 +12,11 @@ async function handleHello(body) {
   const result = await recordCabinetHello(body);
   const cabinetCode = result.cabinet?.cabinetCode || String(body.cabinetCode || '').trim().toUpperCase();
   if (cabinetCode) {
+    let statesStr = "";
+    if (result.lockers) {
+      const sorted = [...result.lockers].sort((a, b) => a.compartmentNo - b.compartmentNo);
+      statesStr = sorted.map(l => (l.status === 'AVAILABLE' ? '0' : '1')).join('');
+    }
     await publishCabinetRegistration(cabinetCode, {
       status: result.status,
       message: result.message,
@@ -20,6 +25,7 @@ async function handleHello(body) {
       expectedIdentity: result.expectedIdentity,
       receivedIdentity: result.receivedIdentity,
       compartmentCount: result.cabinet?.compartmentCount || Number(body.compartmentCount),
+      states: statesStr,
     });
   }
   return result;

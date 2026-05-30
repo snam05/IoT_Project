@@ -35,6 +35,13 @@ export function startMqttWorker() {
     const result = await recordCabinetHello(message);
     const cabinetCode = result.cabinet?.cabinetCode || String(message.cabinetCode || '').trim().toUpperCase();
     if (!cabinetCode) return;
+
+    let statesStr = "";
+    if (result.lockers) {
+      const sorted = [...result.lockers].sort((a, b) => a.compartmentNo - b.compartmentNo);
+      statesStr = sorted.map(l => (l.status === 'AVAILABLE' ? '0' : '1')).join('');
+    }
+
     publish(TOPICS.cabinetRegistration(cabinetCode), {
       status: result.status,
       message: result.message,
@@ -43,20 +50,8 @@ export function startMqttWorker() {
       expectedIdentity: result.expectedIdentity,
       receivedIdentity: result.receivedIdentity,
       compartmentCount: result.cabinet?.compartmentCount || Number(message.compartmentCount),
+      states: statesStr,
     });
-
-    // If cabinet is approved, publish command for each locker to restore its database state
-    if (result.status === 'APPROVED' && result.lockers) {
-      for (const locker of result.lockers) {
-        const action = locker.status === 'AVAILABLE' ? 'unlock' : 'lock';
-        publish(TOPICS.cabinetCommand(cabinetCode), {
-          action,
-          lockerId: `${cabinetCode}:${locker.compartmentNo}`,
-          cabinetCode,
-          compartmentNo: locker.compartmentNo,
-        });
-      }
-    }
   }
 
   async function handleOtpRequest(message) {

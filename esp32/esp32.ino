@@ -47,6 +47,7 @@ String statusMessage = "Starting";
 unsigned long lastOtpRequest = 0;
 unsigned long lastHello = 0;
 unsigned long lastReconnectAttempt = 0;
+String lastProcessedMsgId = "";
 unsigned long codeStartedAt = 0;
 
 unsigned long tempDisplayStartedAt = 0;
@@ -154,9 +155,14 @@ void publishHello() {
 }
 
 void requestOtp() {
+  unsigned long now = millis();
+  if (now - lastOtpRequest < 2000 && lastOtpRequest != 0) {
+    Serial.println("[OTP] Ignored duplicate OTP request (debounced)");
+    return;
+  }
   String payload = "{\"cabinetCode\":\"" + String(CABINET_CODE) + "\",\"compartmentCount\":" + String(COMPARTMENT_COUNT) + ",\"identity\":\"" + cabinetIdentity + "\"}";
   mqtt.publish(topicOtpRequest().c_str(), payload.c_str(), false);
-  lastOtpRequest = millis();
+  lastOtpRequest = now;
 }
 
 void onMqttMessage(char* topic, byte* payload, unsigned int length) {
@@ -167,8 +173,22 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
   if (topicStr == topicRegistration()) {
     cabinetStatus = jsonValue(message, "status");
     statusMessage = jsonValue(message, "message");
-    if (cabinetStatus == "APPROVED") requestOtp();
-    else drawStatus(cabinetStatus, statusMessage);
+    if (cabinetStatus == "APPROVED") {
+      // 1. Parse and apply initial states silently
+      String states = jsonValue(message, "states");
+      if (states.length() == COMPARTMENT_COUNT) {
+        for (int i = 0; i < COMPARTMENT_COUNT; i++) {
+          int pin = LOCK_PINS[i];
+          int val = (states[i] == '0') ? LOW : HIGH;
+          digitalWrite(pin, val);
+          Serial.printf("[Init State] Set compartment %d to %s (Pin %d)\n", i + 1, (val == LOW) ? "OPEN" : "LOCK", pin);
+        }
+      }
+      // 2. Request OTP now that initial opening/closing is fully completed
+      requestOtp();
+    } else {
+      drawStatus(cabinetStatus, statusMessage);
+    }
     return;
   }
 
@@ -192,6 +212,15 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
   }
 
   if (topicStr == topicCommand()) {
+    String msgId = jsonValue(message, "msgId");
+    if (msgId.length() > 0 && msgId == lastProcessedMsgId) {
+      Serial.println("[Command] Ignored duplicate command (QoS 2)");
+      return;
+    }
+    if (msgId.length() > 0) {
+      lastProcessedMsgId = msgId;
+    }
+
     String action = jsonValue(message, "action");
     String compStr = jsonValue(message, "compartmentNo");
     int compNo = compStr.toInt();
