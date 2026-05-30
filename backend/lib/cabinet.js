@@ -185,17 +185,37 @@ export async function createCabinetOtp(input) {
   const cabinetIdentity = hello.cabinet.identity;
   const now = Date.now();
 
-  // Check if we have an active, unused OTP in the synchronous in-memory cache
+  const activeOtpResponse = (otp) => ({
+    status: 'APPROVED',
+    cabinet: hello.cabinet,
+    code: otp.code,
+    expiresAt: otp.expiresAt,
+    expiresIn: Math.max(0, Math.floor((otp.expiresAt.getTime() - now) / 1000)),
+    qrPayload: otp.code,
+  });
+
+  // Reuse the active OTP for the whole 30s window. Duplicate MQTT deliveries or
+  // reconnect bursts must not make the OLED redraw with a new code immediately.
   const cached = otpCache[cabinetIdentity];
-  if (cached && now - cached.createdAt < 2500) {
-    return {
-      status: 'APPROVED',
-      cabinet: hello.cabinet,
-      code: cached.code,
-      expiresAt: cached.expiresAt,
-      expiresIn: Math.max(0, Math.floor((cached.expiresAt.getTime() - now) / 1000)),
-      qrPayload: cached.code,
+  if (cached && cached.expiresAt.getTime() > now + 1000) {
+    return activeOtpResponse(cached);
+  }
+
+  const activeOtp = await prisma.otp.findFirst({
+    where: {
+      lockerId: cabinetIdentity,
+      used: false,
+      expiresAt: { gt: new Date(now + 1000) },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (activeOtp) {
+    otpCache[cabinetIdentity] = {
+      code: activeOtp.code,
+      createdAt: activeOtp.createdAt.getTime(),
+      expiresAt: activeOtp.expiresAt,
     };
+    return activeOtpResponse(activeOtp);
   }
 
   const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');

@@ -39,6 +39,7 @@ const unsigned long OTP_INTERVAL = 30000;
 const unsigned long HELLO_INTERVAL = 15000;
 const unsigned long RECONNECT_INTERVAL = 3000;
 const unsigned long DISPLAY_REFRESH_INTERVAL = 500;
+const unsigned long DUPLICATE_OTP_WINDOW = 30000;
 
 String cabinetIdentity;
 String currentCode = "------";
@@ -245,7 +246,7 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
       nextCode == currentCode &&
       nextQrPayload == currentQrPayload &&
       cabinetStatus == "APPROVED" &&
-      millis() - codeStartedAt < 5000;
+      millis() - codeStartedAt < DUPLICATE_OTP_WINDOW;
     if (duplicateActiveOtp) {
       Serial.println("[OTP] Ignored duplicate OTP response");
       return;
@@ -368,8 +369,6 @@ void loop() {
     if (mqtt.connected() && cabinetStatus == "APPROVED" && now - lastOtpRequest >= OTP_INTERVAL) {
       requestOtp();
     }
-
-    if (cabinetStatus == "APPROVED" && currentCode.length() == 6) drawOtpScreen();
   }
   delay(100);
 }
