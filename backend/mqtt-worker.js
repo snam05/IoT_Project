@@ -44,6 +44,19 @@ export function startMqttWorker() {
       receivedIdentity: result.receivedIdentity,
       compartmentCount: result.cabinet?.compartmentCount || Number(message.compartmentCount),
     });
+
+    // If cabinet is approved, publish command for each locker to restore its database state
+    if (result.status === 'APPROVED' && result.lockers) {
+      for (const locker of result.lockers) {
+        const action = locker.status === 'AVAILABLE' ? 'unlock' : 'lock';
+        publish(TOPICS.cabinetCommand(cabinetCode), {
+          action,
+          lockerId: `${cabinetCode}:${locker.compartmentNo}`,
+          cabinetCode,
+          compartmentNo: locker.compartmentNo,
+        });
+      }
+    }
   }
 
   async function handleOtpRequest(message) {

@@ -13,6 +13,9 @@ function parseUrl(url) {
     database: u.pathname.slice(1),
     // TiDB requires SSL
     ssl: u.searchParams.get('ssl') !== 'false' ? {} : false,
+    connectionLimit: 20,
+    idleTimeout: 30000,
+    acquireTimeout: 30000,
   };
 }
 

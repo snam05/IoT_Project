@@ -12,7 +12,11 @@ export default async function handler(req, res) {
   if (!payload) return;
 
   try {
-    const [total, inUse, maintenance, available, totalUsers, recentUnlocks] = await Promise.all([
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const [total, inUse, maintenance, available, totalUsers, recentUnlocks, newUsersCount] = await Promise.all([
       prisma.locker.count(),
       prisma.locker.count({ where: { status: 'IN_USE' } }),
       prisma.locker.count({ where: { status: 'MAINTENANCE' } }),
@@ -22,6 +26,11 @@ export default async function handler(req, res) {
         where: {
           timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
           action: 'unlock',
+        },
+      }),
+      prisma.user.count({
+        where: {
+          createdAt: { gte: startOfMonth },
         },
       }),
     ]);
@@ -36,7 +45,7 @@ export default async function handler(req, res) {
       totalUsers,
       recentUnlocks,
       capacity: `${capacityPct}% capacity`,
-      growth: '+0 this month', // TODO: compute from DB with date range
+      growth: `+${newUsersCount} this month`,
       updatedAt: new Date().toISOString(),
     });
   } catch (err) {

@@ -74,7 +74,11 @@ export async function recordCabinetHello(input) {
   }
 
   if (existing.status === 'APPROVED') {
-    return { status: 'APPROVED', cabinet: existing, receivedIdentity, message: 'Cabinet approved.' };
+    const lockers = await prisma.locker.findMany({
+      where: { cabinetId: existing.id },
+      select: { compartmentNo: true, status: true },
+    });
+    return { status: 'APPROVED', cabinet: existing, receivedIdentity, lockers, message: 'Cabinet approved.' };
   }
 
   return {

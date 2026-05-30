@@ -16,16 +16,17 @@
 #include "qrcode.h"
 
 // ── Deployment config ─────────────────────────────────────────
-const char* WIFI_SSID = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* WIFI_SSID = "CON CHO BAT MANG LAM CHO";
+const char* WIFI_PASSWORD = "20052005";
 
-const char* MQTT_HOST = "xxxxxxxx.s1.eu.hivemq.cloud";
-const int MQTT_PORT = 8883;
-const char* MQTT_USERNAME = "your-hivemq-username";
-const char* MQTT_PASSWORD = "your-hivemq-password";
+const char* MQTT_HOST = "13.229.56.194";
+const int MQTT_PORT = 1883;
+const char* MQTT_USERNAME = "iot_user";
+const char* MQTT_PASSWORD = "Iotuser@123";
 
-const char* CABINET_CODE = "CABINET_A"; // manually assigned unique cabinet code
-const int COMPARTMENT_COUNT = 10;        // compartments are numbered 1..N
+const char* CABINET_CODE = "TEST_CABINET"; // manually assigned unique cabinet code
+const int COMPARTMENT_COUNT = 8;        // compartments are numbered 1..N
+const int LOCK_PINS[COMPARTMENT_COUNT] = {15, 2, 4, 16, 17, 5, 18, 19};
 
 // For production, replace setInsecure() with your broker root CA.
 WiFiClientSecure wifiClient;
@@ -163,6 +164,22 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
       drawOtpScreen();
     }
   }
+
+  if (topicStr == topicCommand()) {
+    String action = jsonValue(message, "action");
+    String compStr = jsonValue(message, "compartmentNo");
+    int compNo = compStr.toInt();
+    if (compNo >= 1 && compNo <= COMPARTMENT_COUNT) {
+      int pin = LOCK_PINS[compNo - 1];
+      if (action == "unlock") {
+        digitalWrite(pin, LOW); // Mở khóa (LOW)
+        Serial.printf("[Lock Control] Unlocked compartment %d (Pin %d)\n", compNo, pin);
+      } else if (action == "lock") {
+        digitalWrite(pin, HIGH); // Khóa (HIGH)
+        Serial.printf("[Lock Control] Locked compartment %d (Pin %d)\n", compNo, pin);
+      }
+    }
+  }
 }
 
 void connectWifi() {
@@ -196,6 +213,13 @@ void connectMqtt() {
 
 void setup() {
   Serial.begin(115200);
+
+  // Initialize lock control pins
+  for (int i = 0; i < COMPARTMENT_COUNT; i++) {
+    pinMode(LOCK_PINS[i], OUTPUT);
+    digitalWrite(LOCK_PINS[i], HIGH); // Auto-lock all compartments initially (HIGH)
+  }
+
   cabinetIdentity = String(CABINET_CODE) + ":" + String(COMPARTMENT_COUNT);
 
   display.init();
