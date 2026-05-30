@@ -31,7 +31,7 @@ export default async function handler(req, res) {
         orderBy: { timestamp: 'desc' },
         include: {
           user: { select: { id: true, username: true, name: true } },
-          locker: { select: { lockerId: true, zone: true, floor: true } },
+          locker: { select: { lockerId: true, zone: true, floor: true, compartmentNo: true } },
         },
       }),
       prisma.lockerLog.count({ where }),

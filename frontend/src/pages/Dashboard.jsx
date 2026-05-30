@@ -27,6 +27,24 @@ function Spinner() {
   return <div className="w-5 h-5 border-2 border-outline-variant border-t-secondary rounded-full animate-spin" />;
 }
 
+function formatLockerId(lockerOrId) {
+  if (!lockerOrId) return '';
+  if (typeof lockerOrId === 'object') {
+    const zone = lockerOrId.zone || '';
+    const compNo = lockerOrId.compartmentNo;
+    if (compNo != null) {
+      return `${zone}-${String(compNo).padStart(3, '0')}`;
+    }
+    return lockerOrId.lockerId || '';
+  }
+  const [cabinetCode, compNoStr] = String(lockerOrId).split(':');
+  const compNoParsed = Number(compNoStr);
+  if (cabinetCode && !isNaN(compNoParsed)) {
+    return `${cabinetCode}-${String(compNoParsed).padStart(3, '0')}`;
+  }
+  return lockerOrId;
+}
+
 // ── Overview Tab ──────────────────────────────────────────────
 function OverviewTab() {
   const [stats, setStats] = useState(null);
@@ -65,10 +83,10 @@ function OverviewTab() {
         <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6">
           <div className="grid grid-cols-6 gap-2 max-w-md">
             {lockers.map(l => (
-              <div key={l.lockerId} title={`${l.lockerId} — ${l.status}`}
+              <div key={l.lockerId} title={`${formatLockerId(l)} — ${l.status}`}
                 className="aspect-square rounded-lg cursor-pointer hover:scale-110 transition-transform duration-200 flex items-center justify-center"
                 style={{ backgroundColor: STATUS_COLOR[l.status] || '#f0f0f0' }}>
-                <span className="text-xs font-bold opacity-60">{l.col}</span>
+                <span className="text-[10px] font-bold opacity-60">{formatLockerId(l)}</span>
               </div>
             ))}
           </div>
@@ -143,7 +161,7 @@ function LockersTab() {
                 <tr><td colSpan={7} className="text-center py-8"><Spinner/></td></tr>
               ) : data.lockers.map(l => (
                 <tr key={l.lockerId} className="hover:bg-surface-container-low transition-colors">
-                  <td className="px-4 py-3 font-mono font-semibold text-primary">{l.lockerId}</td>
+                  <td className="px-4 py-3 font-mono font-semibold text-primary">{formatLockerId(l)}</td>
                   <td className="px-4 py-3 text-on-surface-variant">{l.zone}</td>
                   <td className="px-4 py-3 text-on-surface-variant">{l.floor}</td>
                   <td className="px-4 py-3"><Badge status={l.status}/></td>
@@ -402,11 +420,11 @@ export default function Dashboard() {
         {activeTab === 'unlock-logs'  && (
           <LogTable
             endpoint="/api/admin/logs/lockers"
-            columns={['Time', 'Locker', 'Zone', 'User', 'Action', 'Method']}
+            columns={['Time', 'Locker ID', 'Zone', 'User', 'Action', 'Method']}
             rowFn={l => (
               <>
                 <td className="px-4 py-3 text-on-surface-variant text-xs">{new Date(l.timestamp).toLocaleString()}</td>
-                <td className="px-4 py-3 font-mono font-semibold text-primary">{l.lockerId}</td>
+                <td className="px-4 py-3 font-mono font-semibold text-primary">{formatLockerId(l.locker || l.lockerId)}</td>
                 <td className="px-4 py-3 text-on-surface-variant">{l.locker?.zone || '—'}</td>
                 <td className="px-4 py-3 text-on-surface-variant">{l.user?.name || 'Unknown'}</td>
                 <td className="px-4 py-3">

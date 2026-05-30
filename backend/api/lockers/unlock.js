@@ -30,36 +30,81 @@ export default async function handler(req, res) {
 
   const { lockerId, method, code } = req.body || {};
 
-  if (!lockerId || !method) {
-    return res.status(400).json({ error: 'lockerId and method are required' });
+  if (!method) {
+    return res.status(400).json({ error: 'method is required' });
   }
   if (!['qr', 'otp'].includes(method)) {
     return res.status(400).json({ error: 'method must be "qr" or "otp"' });
+  }
+  if (method === 'qr' && !lockerId) {
+    return res.status(400).json({ error: 'lockerId is required for QR' });
   }
   if (method === 'otp' && (!code || !/^\d{6}$/.test(code))) {
     return res.status(400).json({ error: 'A valid 6-digit OTP code is required' });
   }
 
   try {
-    const locker = await prisma.locker.findUnique({
-      where: { lockerId },
-      include: { user: { select: { id: true, name: true } }, cabinet: true },
-    });
+    let selectedLocker = null;
+    let cabinet = null;
+    let cabinetCode = null;
+    let codeFromQr = null;
+    let compartmentNo = null;
 
-    if (!locker) {
-      return res.status(404).json({ error: `Locker "${lockerId}" not found` });
-    }
-    if (locker.status === 'MAINTENANCE') {
-      return res.status(409).json({ error: 'Locker is under maintenance' });
+    // Resolve lockerId parsing if it was sent
+    if (lockerId) {
+      if (lockerId.includes(':')) {
+        const parts = lockerId.split(':');
+        cabinetCode = parts[0].trim().toUpperCase();
+        const secondPart = parts[1].trim();
+        if (secondPart.length === 6 && /^\d{6}$/.test(secondPart)) {
+          codeFromQr = secondPart;
+        } else if (/^\d+$/.test(secondPart)) {
+          compartmentNo = parseInt(secondPart);
+        }
+      } else {
+        const cab = await prisma.cabinet.findUnique({
+          where: { cabinetCode: lockerId.toUpperCase() }
+        });
+        if (cab) {
+          cabinetCode = cab.cabinetCode;
+        }
+      }
     }
 
-    // ── OTP Verification ──────────────────────────────────────
-    if (method === 'otp') {
-      if (locker.cabinet) {
+    const resolvedCode = code || codeFromQr;
+
+    // If OTP method and lockerId was not provided, look up the OTP code directly to resolve cabinetCode
+    if (method === 'otp' && !lockerId && resolvedCode) {
+      const otp = await prisma.otp.findFirst({
+        where: {
+          code: resolvedCode,
+          used: false,
+          expiresAt: { gt: new Date() },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!otp) return res.status(401).json({ error: 'Invalid or expired OTP code' });
+      await prisma.otp.update({ where: { id: otp.id }, data: { used: true, userId: payload.userId } });
+
+      const cabIdentity = otp.lockerId; // e.g. "TEST_CABINET:8"
+      const [parsedCabCode] = cabIdentity.split(':');
+      cabinetCode = parsedCabCode.toUpperCase();
+    }
+
+    if (cabinetCode) {
+      cabinet = await prisma.cabinet.findUnique({
+        where: { cabinetCode },
+        include: { lockers: true }
+      });
+    }
+
+    if (cabinet) {
+      // If we had lockerId provided, verify the OTP now (it was already verified & marked used above if lockerId was omitted)
+      if (lockerId && resolvedCode) {
         const otp = await prisma.otp.findFirst({
           where: {
-            lockerId: locker.cabinet.identity,
-            code,
+            lockerId: cabinet.identity,
+            code: resolvedCode,
             used: false,
             expiresAt: { gt: new Date() },
           },
@@ -67,25 +112,57 @@ export default async function handler(req, res) {
         });
         if (!otp) return res.status(401).json({ error: 'Invalid or expired OTP code' });
         await prisma.otp.update({ where: { id: otp.id }, data: { used: true, userId: payload.userId } });
-      } else {
-        const valid = verifyTotp(code, locker.totpSecret);
-        if (!valid) return res.status(401).json({ error: 'Invalid or expired OTP code' });
       }
+
+      if (compartmentNo != null) {
+        selectedLocker = cabinet.lockers.find(l => l.compartmentNo === compartmentNo);
+        if (!selectedLocker) {
+          return res.status(404).json({ error: `Compartment ${compartmentNo} not found in cabinet ${cabinetCode}` });
+        }
+      } else {
+        const availableLockers = cabinet.lockers.filter(l => l.status === 'AVAILABLE');
+        if (availableLockers.length === 0) {
+          const { publishCabinetOtp } = await import('../../lib/mqtt.js');
+          try {
+            await publishCabinetOtp(cabinet.cabinetCode, {
+              status: 'CABINET FULL',
+              message: 'No empty lockers!',
+            });
+          } catch (mqttErr) {
+            console.warn('[unlock] Failed to publish FULL status to MQTT:', mqttErr.message);
+          }
+
+          return res.status(409).json({ error: 'Cabinet is full. No available lockers.' });
+        }
+
+        const randomIndex = Math.floor(Math.random() * availableLockers.length);
+        selectedLocker = availableLockers[randomIndex];
+      }
+    } else {
+      selectedLocker = await prisma.locker.findUnique({
+        where: { lockerId: lockerId.toUpperCase() },
+        include: { cabinet: true }
+      });
     }
 
-    // ── Determine action (toggle logic) ──────────────────────
-    const isLocked = locker.status === 'IN_USE';
+    if (!selectedLocker) {
+      return res.status(404).json({ error: `Locker "${lockerId}" not found` });
+    }
+
+    if (selectedLocker.status === 'MAINTENANCE') {
+      return res.status(409).json({ error: 'Locker is under maintenance' });
+    }
+
+    const isLocked = selectedLocker.status === 'IN_USE';
     const action = isLocked ? 'unlock' : 'lock';
 
-    // If locked by another user, only admin can unlock
-    if (isLocked && locker.userId !== payload.userId && payload.role !== 'ADMIN') {
+    if (isLocked && selectedLocker.userId !== payload.userId && payload.role !== 'ADMIN') {
       return res.status(403).json({ error: 'This locker is in use by another user' });
     }
 
-    // ── Update DB ─────────────────────────────────────────────
     const newStatus = action === 'unlock' ? 'AVAILABLE' : 'IN_USE';
     await prisma.locker.update({
-      where: { lockerId },
+      where: { id: selectedLocker.id },
       data: {
         status: newStatus,
         userId: action === 'lock' ? payload.userId : null,
@@ -96,7 +173,7 @@ export default async function handler(req, res) {
     // ── Log ───────────────────────────────────────────────────
     await prisma.lockerLog.create({
       data: {
-        lockerId,
+        lockerId: selectedLocker.lockerId,
         userId: payload.userId,
         action,
         method,
@@ -107,7 +184,7 @@ export default async function handler(req, res) {
     // ── Publish MQTT to ESP32 ─────────────────────────────────
     let mqttOk = true;
     try {
-      await publishCommand(lockerId, {
+      await publishCommand(selectedLocker.lockerId, {
         action,
         method,
         userId: payload.userId,
@@ -121,7 +198,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       action,
-      lockerId,
+      lockerId: selectedLocker.lockerId,
       newStatus,
       mqttDelivered: mqttOk,
     });

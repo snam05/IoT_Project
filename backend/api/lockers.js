@@ -30,6 +30,7 @@ export default async function handler(req, res) {
         orderBy: [{ zone: 'asc' }, { row: 'asc' }, { col: 'asc' }],
         select: {
           lockerId: true,
+          compartmentNo: true,
           zone: true,
           floor: true,
           row: true,

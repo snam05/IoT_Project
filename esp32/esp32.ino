@@ -49,6 +49,19 @@ unsigned long lastHello = 0;
 unsigned long lastReconnectAttempt = 0;
 unsigned long codeStartedAt = 0;
 
+unsigned long tempDisplayStartedAt = 0;
+bool isTempDisplayActive = false;
+String tempDisplayTitle = "";
+String tempDisplayDetail = "";
+
+void showTemporaryStatus(String title, String detail) {
+  tempDisplayTitle = title;
+  tempDisplayDetail = detail;
+  tempDisplayStartedAt = millis();
+  isTempDisplayActive = true;
+  drawStatus(title, detail);
+}
+
 QRCode qrcode;
 uint8_t qrcodeBytes[64];
 
@@ -150,7 +163,7 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
     if (status != "APPROVED") {
       cabinetStatus = status;
       statusMessage = jsonValue(message, "message");
-      drawStatus(cabinetStatus, statusMessage);
+      showTemporaryStatus(cabinetStatus, statusMessage);
       return;
     }
 
@@ -173,9 +186,11 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
       if (action == "unlock") {
         digitalWrite(pin, LOW); // Mở khóa (LOW)
         Serial.printf("[Lock Control] Unlocked compartment %d (Pin %d)\n", compNo, pin);
+        showTemporaryStatus("OPENED", "Compartment " + compStr + " is opened");
       } else if (action == "lock") {
         digitalWrite(pin, HIGH); // Khóa (HIGH)
         Serial.printf("[Lock Control] Locked compartment %d (Pin %d)\n", compNo, pin);
+        showTemporaryStatus("CLOSED", "Compartment " + compStr + " is closed");
       }
     }
   }
@@ -239,13 +254,24 @@ void loop() {
   mqtt.loop();
 
   unsigned long now = millis();
-  if (mqtt.connected() && now - lastHello >= HELLO_INTERVAL && cabinetStatus != "APPROVED") {
-    publishHello();
-  }
-  if (mqtt.connected() && cabinetStatus == "APPROVED" && now - lastOtpRequest >= OTP_INTERVAL) {
-    requestOtp();
-  }
 
-  if (cabinetStatus == "APPROVED" && currentCode.length() == 6) drawOtpScreen();
+  if (isTempDisplayActive) {
+    if (now - tempDisplayStartedAt >= 4000) {
+      isTempDisplayActive = false;
+      cabinetStatus = "APPROVED";
+      requestOtp();
+    } else {
+      drawStatus(tempDisplayTitle, tempDisplayDetail);
+    }
+  } else {
+    if (mqtt.connected() && now - lastHello >= HELLO_INTERVAL && cabinetStatus != "APPROVED") {
+      publishHello();
+    }
+    if (mqtt.connected() && cabinetStatus == "APPROVED" && now - lastOtpRequest >= OTP_INTERVAL) {
+      requestOtp();
+    }
+
+    if (cabinetStatus == "APPROVED" && currentCode.length() == 6) drawOtpScreen();
+  }
   delay(100);
 }

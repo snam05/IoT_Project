@@ -50,15 +50,15 @@ export default function QRScanner() {
 
   // ── Submit unlock ─────────────────────────────────────────
   const submitUnlock = async (method, code) => {
-    if (!lockerId.trim() && method === 'otp') {
-      setResult({ success: false, message: 'Enter the locker ID first' });
-      return;
-    }
     setSubmitting(true);
     setResult(null);
     try {
-      const body = { lockerId: (lockerId || scannedId).trim().toUpperCase(), method };
-      if (method === 'otp') body.code = otpDigits.join('');
+      const body = { method };
+      if (method === 'otp') {
+        body.code = otpDigits.join('');
+      } else {
+        body.lockerId = (lockerId || scannedId || 'TEST_CABINET').trim().toUpperCase();
+      }
 
       const res = await fetch('/api/lockers/unlock', {
         method: 'POST',
@@ -68,7 +68,15 @@ export default function QRScanner() {
       });
       const data = await res.json();
       if (res.ok) {
-        setResult({ success: true, message: `Locker ${data.lockerId} ${data.action}ed successfully!` });
+        const formattedLockerId = (() => {
+          if (!data.lockerId) return '';
+          const [cab, comp] = data.lockerId.split(':');
+          if (cab && comp && !isNaN(Number(comp))) {
+            return `${cab}-${String(comp).padStart(3, '0')}`;
+          }
+          return data.lockerId;
+        })();
+        setResult({ success: true, message: `Locker ${formattedLockerId} unlocked successfully!` });
         setOtpDigits(['', '', '', '', '', '']);
         setScanning(true);
       } else {
@@ -81,9 +89,8 @@ export default function QRScanner() {
     }
   };
 
-  // Simulate QR scan (in production, use camera + QR library)
   const simulateScan = () => {
-    const id = lockerId.trim().toUpperCase() || 'A-001';
+    const id = 'TEST_CABINET';
     setScannedId(id);
     setScanning(false);
     submitUnlock('qr');
@@ -170,13 +177,6 @@ export default function QRScanner() {
 
           {/* Locker ID manual input (fallback for QR) */}
           <div className="absolute z-20 flex flex-col items-center gap-3" style={{ top: 'calc(50% + 160px)' }}>
-            <input
-              type="text"
-              value={lockerId}
-              onChange={(e) => setLockerId(e.target.value)}
-              placeholder="Locker ID (e.g. A-001)"
-              className="bg-white/10 backdrop-blur-xl border border-white/30 text-white placeholder-white/40 text-body-md rounded-xl px-4 py-3 text-center w-56 focus:outline-none focus:border-white/60 transition-all uppercase"
-            />
             <button
               onClick={simulateScan}
               disabled={submitting}
@@ -201,15 +201,6 @@ export default function QRScanner() {
             <p className="text-body-lg text-white font-semibold mb-1">Enter OTP Code</p>
             <p className="text-body-md text-white/70">Enter the 6-digit code shown on the locker display</p>
           </div>
-
-          {/* Locker ID */}
-          <input
-            type="text"
-            value={lockerId}
-            onChange={(e) => setLockerId(e.target.value)}
-            placeholder="Locker ID (e.g. A-001)"
-            className="bg-white/10 backdrop-blur-xl border border-white/30 text-white placeholder-white/40 text-body-md rounded-xl px-4 py-3 w-full text-center focus:outline-none focus:border-white/60 transition-all uppercase"
-          />
 
           {/* 6-digit OTP input boxes */}
           <div className="flex gap-2.5" onPaste={handleOtpPaste}>
