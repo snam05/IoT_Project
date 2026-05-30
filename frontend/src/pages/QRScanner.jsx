@@ -151,7 +151,7 @@ export default function QRScanner() {
         scanner = new Html5Qrcode('qr-reader', false);
         scannerRef.current = scanner;
         await scanner.start(
-          { facingMode: { ideal: 'environment' } },
+          { facingMode: 'environment' },
           { fps: 10, qrbox: { width: 260, height: 260 }, aspectRatio: 1 },
           handleDecodedQr,
           () => {},
@@ -201,7 +201,11 @@ export default function QRScanner() {
         }
       `}</style>
 
-      {tab === 'qr' && <div id="qr-reader" className="absolute inset-0 z-0 bg-black" />}
+      <div 
+        id="qr-reader" 
+        className="absolute inset-0 z-0 bg-black" 
+        style={{ display: tab === 'qr' ? 'block' : 'none' }}
+      />
 
       {tab === 'otp' && (
         <div
