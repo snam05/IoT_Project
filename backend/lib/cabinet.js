@@ -197,57 +197,63 @@ export async function deleteCabinet(cabinetId) {
 // Simple short-lived memory cache for requestIds to prevent concurrent duplicate processing (e.g. MQTT worker + Webhook bridge)
 const processedRequestCache = new Map();
 
-function cacheRequestResult(requestId, result) {
-  processedRequestCache.set(requestId, result);
-  setTimeout(() => {
-    processedRequestCache.delete(requestId);
-  }, 10000);
-}
-
 export async function createCabinetOtp(input) {
   const { requestId } = input || {};
-
-  // If this exact requestId was processed recently, return the exact same result immediately!
-  if (requestId && processedRequestCache.has(requestId)) {
-    return processedRequestCache.get(requestId);
+  
+  if (requestId) {
+    if (processedRequestCache.has(requestId)) {
+      const cached = processedRequestCache.get(requestId);
+      return cached instanceof Promise ? await cached : cached;
+    }
   }
 
-  const hello = await recordCabinetHello(input);
-  if (hello.status !== 'APPROVED') return hello;
+  const workPromise = (async () => {
+    const hello = await recordCabinetHello(input);
+    if (hello.status !== 'APPROVED') return hello;
 
-  const cabinetIdentity = hello.cabinet.identity;
-  const now = Date.now();
+    const cabinetIdentity = hello.cabinet.identity;
+    const now = Date.now();
 
-  const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
-  const expiresAt = new Date(now + 30_000);
+    const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
+    const expiresAt = new Date(now + 30_000);
 
-  // Delete all existing OTPs for this cabinet immediately to auto-invalidate the old code
-  await prisma.otp.deleteMany({
-    where: { lockerId: cabinetIdentity }
-  });
+    // Delete all existing OTPs for this cabinet immediately to auto-invalidate the old code
+    await prisma.otp.deleteMany({
+      where: { lockerId: cabinetIdentity }
+    });
 
-  await prisma.otp.create({
-    data: {
+    await prisma.otp.create({
+      data: {
+        code,
+        lockerId: cabinetIdentity,
+        userId: null,
+        expiresAt,
+        used: false,
+      },
+    });
+
+    return {
+      status: 'APPROVED',
+      cabinet: hello.cabinet,
       code,
-      lockerId: cabinetIdentity,
-      userId: null,
       expiresAt,
-      used: false,
-    },
-  });
-
-  const responseResult = {
-    status: 'APPROVED',
-    cabinet: hello.cabinet,
-    code,
-    expiresAt,
-    expiresIn: 30,
-    qrPayload: code,
-  };
+      expiresIn: 30,
+      qrPayload: code,
+    };
+  })();
 
   if (requestId) {
-    cacheRequestResult(requestId, responseResult);
+    processedRequestCache.set(requestId, workPromise);
+    
+    workPromise.then((resolvedValue) => {
+      processedRequestCache.set(requestId, resolvedValue);
+      setTimeout(() => {
+        processedRequestCache.delete(requestId);
+      }, 10000);
+    }).catch(() => {
+      processedRequestCache.delete(requestId);
+    });
   }
 
-  return responseResult;
+  return await workPromise;
 }
