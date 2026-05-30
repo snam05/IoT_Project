@@ -77,13 +77,11 @@ export default async function handler(req, res) {
       const otp = await prisma.otp.findFirst({
         where: {
           code: resolvedCode,
-          used: false,
           expiresAt: { gt: new Date() },
         },
         orderBy: { createdAt: 'desc' },
       });
       if (!otp) return res.status(401).json({ error: 'Invalid or expired OTP code' });
-      await prisma.otp.update({ where: { id: otp.id }, data: { used: true, userId: payload.userId } });
 
       const cabIdentity = otp.lockerId; // e.g. "TEST_CABINET:8"
       const [parsedCabCode] = cabIdentity.split(':');
@@ -108,37 +106,19 @@ export default async function handler(req, res) {
 
     if (activeLocker) {
       selectedLocker = activeLocker;
-      // Mark OTP as used if it was submitted
-      if (resolvedCode) {
-        const otpWhere = {
-          code: resolvedCode,
-          used: false,
-          expiresAt: { gt: new Date() },
-        };
-        if (cabinet) otpWhere.lockerId = cabinet.identity;
-        const otp = await prisma.otp.findFirst({
-          where: otpWhere,
-          orderBy: { createdAt: 'desc' },
-        });
-        if (otp) {
-          await prisma.otp.update({ where: { id: otp.id }, data: { used: true, userId: payload.userId } });
-        }
-      }
     } else {
       if (cabinet) {
-        // If we had lockerId provided, verify the OTP now (it was already verified & marked used above if lockerId was omitted)
+        // If we had lockerId provided, verify the OTP now.
         if (lockerId && resolvedCode) {
           const otp = await prisma.otp.findFirst({
             where: {
               lockerId: cabinet.identity,
               code: resolvedCode,
-              used: false,
               expiresAt: { gt: new Date() },
             },
             orderBy: { createdAt: 'desc' },
           });
           if (!otp) return res.status(401).json({ error: 'Invalid or expired OTP code' });
-          await prisma.otp.update({ where: { id: otp.id }, data: { used: true, userId: payload.userId } });
         }
 
         if (compartmentNo != null) {

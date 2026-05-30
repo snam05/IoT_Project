@@ -227,7 +227,6 @@ export async function createCabinetOtp(input) {
     const activeOtp = await prisma.otp.findFirst({
       where: {
         lockerId: cabinetIdentity,
-        used: false,
         expiresAt: { gt: new Date(now + 1000) },
       },
       orderBy: { createdAt: 'desc' },
