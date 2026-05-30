@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
+import jsQR from 'jsqr';
 
 function requestFromParams(params) {
   const code = params.get('code') || params.get('otp');
@@ -79,19 +80,23 @@ function formatLockerId(lockerId) {
 
 function cameraErrorMessage(err) {
   const name = err?.name || '';
+  const detail = ` (${window.location.protocol}//${window.location.host}, secure=${window.isSecureContext ? 'yes' : 'no'})`;
   if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return 'Camera requires HTTPS. Open this page with https:// and allow camera permission.';
+    return `Camera requires HTTPS. Open this page with https:// and allow camera permission.${detail}`;
   }
   if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-    return 'Camera permission was blocked. Allow camera access in browser settings, then tap Start camera.';
+    return `Camera permission was blocked. Allow camera access in browser settings, then tap Start camera.${detail}`;
   }
   if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-    return 'No camera was found on this device.';
+    return `No camera was found on this device.${detail}`;
   }
   if (name === 'NotReadableError' || name === 'TrackStartError') {
-    return 'Camera is already being used by another app. Close it, then tap Start camera.';
+    return `Camera is already being used by another app. Close it, then tap Start camera.${detail}`;
   }
-  return 'Could not start camera. Allow camera permission, use HTTPS, then tap Start camera.';
+  if (err?.message === 'MEDIA_DEVICES_UNAVAILABLE') {
+    return `This browser does not expose the camera API. Use HTTPS, localhost, or Scan image.${detail}`;
+  }
+  return `Could not start camera. Allow camera permission, use HTTPS, then tap Start camera.${detail}`;
 }
 
 export default function QRScanner() {
@@ -112,10 +117,14 @@ export default function QRScanner() {
   const [scannedText, setScannedText] = useState('');
   const [hasTorch, setHasTorch] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
-  const [, setCameraRetry] = useState(0);
   const otpRefs = useRef([]);
   const fileInputRef = useRef(null);
   const scannerRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const frameRef = useRef(null);
+  const lastScanAtRef = useRef(0);
   const scanLockedRef = useRef(false);
 
   const handleOtpInput = (index, value) => {
@@ -195,6 +204,19 @@ export default function QRScanner() {
 
     scanLockedRef.current = true;
     setScannedText(decodedText);
+    if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+    lastScanAtRef.current = 0;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setScannerReady(false);
+    setHasTorch(false);
+    setTorchOn(false);
 
     const scanner = scannerRef.current;
     if (scanner) {
@@ -207,23 +229,31 @@ export default function QRScanner() {
 
   const toggleTorch = useCallback(async () => {
     try {
-      const videoEl = document.querySelector('#qr-reader video');
-      if (videoEl && videoEl.srcObject) {
-        const track = videoEl.srcObject.getVideoTracks()[0];
-        if (track) {
-          const nextState = !torchOn;
-          await track.applyConstraints({
-            advanced: [{ torch: nextState }]
-          });
-          setTorchOn(nextState);
-        }
+      const track = streamRef.current?.getVideoTracks()[0];
+      if (track) {
+        const nextState = !torchOn;
+        await track.applyConstraints({
+          advanced: [{ torch: nextState }]
+        });
+        setTorchOn(nextState);
       }
     } catch (err) {
       console.error('Failed to toggle torch:', err);
     }
   }, [torchOn]);
 
-  const stopScanner = useCallback(async () => {
+  const clearScannerRuntime = useCallback(async () => {
+    if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+    lastScanAtRef.current = 0;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+
     const scanner = scannerRef.current;
     if (!scanner) return;
     scannerRef.current = null;
@@ -238,6 +268,13 @@ export default function QRScanner() {
       // Ignore cleanup failures from partially-started scanners.
     }
   }, []);
+
+  const stopScanner = useCallback(async () => {
+    await clearScannerRuntime();
+    setScannerReady(false);
+    setHasTorch(false);
+    setTorchOn(false);
+  }, [clearScannerRuntime]);
 
   const startCamera = useCallback(async () => {
     if (tab !== 'qr') return;
@@ -255,38 +292,67 @@ export default function QRScanner() {
         throw new Error('MEDIA_DEVICES_UNAVAILABLE');
       }
 
-      const scanner = new Html5Qrcode('qr-reader', false);
-      scannerRef.current = scanner;
-      const startPromise = scanner.start(
-        { facingMode: { ideal: 'environment' } },
-        {
-          fps: 15,
-          qrbox: (width, height) => {
-            const size = Math.floor(Math.min(width, height) * 0.68);
-            return { width: size, height: size };
-          },
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
         },
-        handleDecodedQr,
-        () => {},
-      );
-      await Promise.race([
-        startPromise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('CAMERA_START_TIMEOUT')), 10000)),
-      ]);
+        audio: false,
+      });
+      streamRef.current = stream;
+
+      const video = videoRef.current;
+      if (!video) throw new Error('VIDEO_ELEMENT_UNAVAILABLE');
+      video.srcObject = stream;
+      video.muted = true;
+      video.setAttribute('playsinline', 'true');
+      await video.play();
 
       setScannerReady(true);
       setScannerStarting(false);
-      setTimeout(() => {
-        try {
-          const videoEl = document.querySelector('#qr-reader video');
-          if (videoEl && videoEl.srcObject) {
-            const track = videoEl.srcObject.getVideoTracks()[0];
-            if (track?.getCapabilities?.()?.torch) setHasTorch(true);
+
+      const track = stream.getVideoTracks()[0];
+      if (track?.getCapabilities?.()?.torch) setHasTorch(true);
+
+      const scanFrame = async () => {
+        if (!videoRef.current || !canvasRef.current || scanLockedRef.current) return;
+
+        const activeVideo = videoRef.current;
+        const now = performance.now();
+        if (
+          activeVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+          && activeVideo.videoWidth > 0
+          && now - lastScanAtRef.current >= 120
+        ) {
+          lastScanAtRef.current = now;
+          const canvas = canvasRef.current;
+          const scale = Math.min(1, 720 / activeVideo.videoWidth);
+          canvas.width = Math.max(1, Math.floor(activeVideo.videoWidth * scale));
+          canvas.height = Math.max(1, Math.floor(activeVideo.videoHeight * scale));
+          const context = canvas.getContext('2d', { willReadFrequently: true });
+          if (!context) {
+            frameRef.current = requestAnimationFrame(scanFrame);
+            return;
           }
-        } catch (err) {
-          console.warn('Failed to check torch support:', err);
+          context.drawImage(activeVideo, 0, 0, canvas.width, canvas.height);
+          try {
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: 'attemptBoth',
+            });
+            if (code?.data) {
+              handleDecodedQr(code.data);
+              return;
+            }
+          } catch (err) {
+            console.warn('[qr detector]', err);
+          }
         }
-      }, 1000);
+
+        frameRef.current = requestAnimationFrame(scanFrame);
+      };
+      frameRef.current = requestAnimationFrame(scanFrame);
     } catch (err) {
       console.error('[qr scanner]', err);
       await stopScanner();
@@ -307,9 +373,12 @@ export default function QRScanner() {
       setScannedText(file.name);
       await stopScanner();
       const imageScanner = new Html5Qrcode('qr-file-reader', false);
-      const decodedText = await imageScanner.scanFile(file, false);
-      await imageScanner.clear();
-      handleDecodedQr(decodedText);
+      try {
+        const decodedText = await imageScanner.scanFile(file, false);
+        handleDecodedQr(decodedText);
+      } finally {
+        await imageScanner.clear().catch(() => {});
+      }
     } catch (err) {
       console.error('[qr image scanner]', err);
       setResult({ success: false, message: 'Could not read QR from this image. Try a clearer photo.' });
@@ -318,12 +387,12 @@ export default function QRScanner() {
 
   useEffect(() => {
     if (tab !== 'qr') {
-      stopScanner();
+      clearScannerRuntime();
     }
     return () => {
-      stopScanner();
+      clearScannerRuntime();
     };
-  }, [stopScanner, tab]);
+  }, [clearScannerRuntime, tab]);
 
   return (
     <div className="bg-black text-on-primary h-screen w-screen overflow-hidden relative flex flex-col items-center justify-center">
@@ -349,7 +418,10 @@ export default function QRScanner() {
         id="qr-reader" 
         className="absolute inset-0 z-0 bg-black" 
         style={{ display: tab === 'qr' ? 'block' : 'none' }}
-      />
+      >
+        <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
+        <canvas ref={canvasRef} className="hidden" />
+      </div>
       <div id="qr-file-reader" className="hidden" />
       <input
         ref={fileInputRef}
@@ -417,7 +489,13 @@ export default function QRScanner() {
           ].map(({ key, icon, label }) => (
             <button
               key={key}
-              onClick={() => { setTab(key); setResult(null); setScannerError(''); setOtpDigits(['', '', '', '', '', '']); }}
+              onClick={() => {
+                if (key !== tab) stopScanner();
+                setTab(key);
+                setResult(null);
+                setScannerError('');
+                setOtpDigits(['', '', '', '', '', '']);
+              }}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-label-md font-semibold transition-all duration-200 ${
                 tab === key ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:text-white'
               }`}
@@ -441,10 +519,7 @@ export default function QRScanner() {
               <div className="mb-3">{scannerError || (scannerStarting ? 'Starting camera...' : 'Camera is not running')}</div>
               <button
                 type="button"
-                onClick={() => {
-                  setCameraRetry((value) => value + 1);
-                  startCamera();
-                }}
+                onClick={startCamera}
                 className="px-4 py-2 rounded-lg bg-white text-black text-label-md font-semibold active:scale-95 transition-all"
               >
                 Start camera
@@ -464,6 +539,12 @@ export default function QRScanner() {
               result.success ? 'bottom-28 bg-green-500/20 text-green-200 border border-green-500/30' : 'bottom-28 bg-red-500/20 text-red-200 border border-red-500/30'
             }`}>
               {result.message}
+            </div>
+          )}
+
+          {scannerReady && scannerError && (
+            <div className="absolute z-20 bottom-28 px-5 py-3 rounded-xl text-body-md max-w-sm text-center bg-yellow-500/20 text-yellow-100 border border-yellow-400/30">
+              {scannerError}
             </div>
           )}
 

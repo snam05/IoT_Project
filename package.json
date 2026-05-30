@@ -30,6 +30,7 @@
     "dotenv": "^17.4.2",
     "html5-qrcode": "^2.3.8",
     "jsonwebtoken": "^9.0.3",
+    "jsqr": "^1.4.0",
     "mariadb": "^3.5.2",
     "mqtt": "^5.15.1",
     "prisma": "^7.8.0",
