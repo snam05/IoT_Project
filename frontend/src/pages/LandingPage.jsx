@@ -69,7 +69,7 @@ export default function LandingPage() {
           Personal storage,<br />redefined.
         </h1>
         <p className="text-body-lg text-on-surface-variant max-w-2xl mx-auto mb-10">
-          VaultSmart delivers a smart storage experience with absolute security and elegant design.
+          LockerSystem delivers a smart storage experience with absolute security and elegant design.
           Perfect for every modern space.
         </p>
 
@@ -79,16 +79,6 @@ export default function LandingPage() {
               {primaryAction.label}
             </button>
           </Link>
-          {user?.role !== 'ADMIN' && (
-            <Link to="/scan">
-              <button className="text-secondary text-body-md font-semibold px-8 py-4 rounded-full hover:bg-surface-variant transition-colors active:scale-95 flex items-center justify-center gap-2 w-full sm:w-auto">
-                Scan QR Code
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                  arrow_forward
-                </span>
-              </button>
-            </Link>
-          )}
         </div>
 
         {/* Hero Image */}
