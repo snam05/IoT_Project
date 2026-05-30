@@ -112,8 +112,9 @@ export default function QRScanner() {
   const [scannedText, setScannedText] = useState('');
   const [hasTorch, setHasTorch] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
-  const [cameraRetry, setCameraRetry] = useState(0);
+  const [, setCameraRetry] = useState(0);
   const otpRefs = useRef([]);
+  const fileInputRef = useRef(null);
   const scannerRef = useRef(null);
   const scanLockedRef = useRef(false);
 
@@ -222,104 +223,107 @@ export default function QRScanner() {
     }
   }, [torchOn]);
 
-  useEffect(() => {
-    if (tab !== 'qr') return undefined;
+  const stopScanner = useCallback(async () => {
+    const scanner = scannerRef.current;
+    if (!scanner) return;
+    scannerRef.current = null;
+    try {
+      await scanner.stop();
+    } catch {
+      // Scanner may not be running yet.
+    }
+    try {
+      await scanner.clear();
+    } catch {
+      // Ignore cleanup failures from partially-started scanners.
+    }
+  }, []);
 
-    let cancelled = false;
-    let scanner;
+  const startCamera = useCallback(async () => {
+    if (tab !== 'qr') return;
+
+    await stopScanner();
     scanLockedRef.current = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setScannerReady(false);
     setScannerStarting(true);
     setScannerError('');
     setHasTorch(false);
     setTorchOn(false);
 
-    const startScanner = async () => {
-      try {
-        if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error('MEDIA_DEVICES_UNAVAILABLE');
-        }
-        const permissionStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-          audio: false,
-        });
-        permissionStream.getTracks().forEach((track) => track.stop());
-        if (cancelled) return;
-
-        scanner = new Html5Qrcode('qr-reader', false);
-        scannerRef.current = scanner;
-        const startPromise = scanner.start(
-          { 
-            facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-          { 
-            fps: 25, 
-            qrbox: (width, height) => {
-              const size = Math.min(width, height) * 0.65;
-              return { width: size, height: size };
-            }
-          },
-          handleDecodedQr,
-          () => {},
-        );
-        await Promise.race([
-          startPromise,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('CAMERA_START_TIMEOUT')), 8000)),
-        ]);
-        
-        if (!cancelled) {
-          setScannerReady(true);
-          setScannerStarting(false);
-          // Check for flashlight capability after stream is active
-          setTimeout(() => {
-            if (cancelled) return;
-            try {
-              const videoEl = document.querySelector('#qr-reader video');
-              if (videoEl && videoEl.srcObject) {
-                const track = videoEl.srcObject.getVideoTracks()[0];
-                if (track) {
-                  const capabilities = track.getCapabilities();
-                  if (capabilities.torch) {
-                    setHasTorch(true);
-                  }
-                }
-              }
-            } catch (err) {
-              console.warn('Failed to check torch support:', err);
-            }
-          }, 1000);
-        }
-      } catch (err) {
-        console.error('[qr scanner]', err);
-        if (!cancelled) {
-          setScannerReady(false);
-          setScannerStarting(false);
-          setScannerError(cameraErrorMessage(err));
-        }
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('MEDIA_DEVICES_UNAVAILABLE');
       }
-    };
 
-    const timer = setTimeout(startScanner, cameraRetry ? 0 : 200);
+      const scanner = new Html5Qrcode('qr-reader', false);
+      scannerRef.current = scanner;
+      const startPromise = scanner.start(
+        { facingMode: { ideal: 'environment' } },
+        {
+          fps: 15,
+          qrbox: (width, height) => {
+            const size = Math.floor(Math.min(width, height) * 0.68);
+            return { width: size, height: size };
+          },
+        },
+        handleDecodedQr,
+        () => {},
+      );
+      await Promise.race([
+        startPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('CAMERA_START_TIMEOUT')), 10000)),
+      ]);
 
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-      scanLockedRef.current = false;
+      setScannerReady(true);
+      setScannerStarting(false);
+      setTimeout(() => {
+        try {
+          const videoEl = document.querySelector('#qr-reader video');
+          if (videoEl && videoEl.srcObject) {
+            const track = videoEl.srcObject.getVideoTracks()[0];
+            if (track?.getCapabilities?.()?.torch) setHasTorch(true);
+          }
+        } catch (err) {
+          console.warn('Failed to check torch support:', err);
+        }
+      }, 1000);
+    } catch (err) {
+      console.error('[qr scanner]', err);
+      await stopScanner();
       setScannerReady(false);
       setScannerStarting(false);
-      setHasTorch(false);
-      setTorchOn(false);
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {}).finally(() => {
-          scannerRef.current?.clear?.();
-          scannerRef.current = null;
-        });
-      }
+      setScannerError(cameraErrorMessage(err));
+    }
+  }, [handleDecodedQr, stopScanner, tab]);
+
+  const scanQrImage = useCallback(async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+      setResult(null);
+      setScannerError('');
+      setScannedText(file.name);
+      await stopScanner();
+      const imageScanner = new Html5Qrcode('qr-file-reader', false);
+      const decodedText = await imageScanner.scanFile(file, false);
+      await imageScanner.clear();
+      handleDecodedQr(decodedText);
+    } catch (err) {
+      console.error('[qr image scanner]', err);
+      setResult({ success: false, message: 'Could not read QR from this image. Try a clearer photo.' });
+    }
+  }, [handleDecodedQr, stopScanner]);
+
+  useEffect(() => {
+    if (tab !== 'qr') {
+      stopScanner();
+    }
+    return () => {
+      stopScanner();
     };
-  }, [tab, handleDecodedQr, cameraRetry]);
+  }, [stopScanner, tab]);
 
   return (
     <div className="bg-black text-on-primary h-screen w-screen overflow-hidden relative flex flex-col items-center justify-center">
@@ -345,6 +349,15 @@ export default function QRScanner() {
         id="qr-reader" 
         className="absolute inset-0 z-0 bg-black" 
         style={{ display: tab === 'qr' ? 'block' : 'none' }}
+      />
+      <div id="qr-file-reader" className="hidden" />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={scanQrImage}
+        className="hidden"
       />
 
       {tab === 'otp' && (
@@ -428,10 +441,20 @@ export default function QRScanner() {
               <div className="mb-3">{scannerError || (scannerStarting ? 'Starting camera...' : 'Camera is not running')}</div>
               <button
                 type="button"
-                onClick={() => setCameraRetry((value) => value + 1)}
+                onClick={() => {
+                  setCameraRetry((value) => value + 1);
+                  startCamera();
+                }}
                 className="px-4 py-2 rounded-lg bg-white text-black text-label-md font-semibold active:scale-95 transition-all"
               >
                 Start camera
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="ml-2 px-4 py-2 rounded-lg border border-white/30 text-white text-label-md font-semibold active:scale-95 transition-all"
+              >
+                Scan image
               </button>
             </div>
           )}

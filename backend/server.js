@@ -59,6 +59,10 @@ const mimeTypes = {
   '.woff2': 'font/woff2',
 };
 
+function setSecurityHeaders(res) {
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=()');
+}
+
 function parseBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -177,6 +181,7 @@ async function handleStatic(req, res, url) {
 }
 
 export const server = createServer(async (req, res) => {
+  setSecurityHeaders(res);
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   try {
     if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
