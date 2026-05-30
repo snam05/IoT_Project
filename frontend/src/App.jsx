@@ -6,6 +6,10 @@ import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import QRScanner from './pages/QRScanner';
 import ProfilePage from './pages/ProfilePage';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
+import SupportPage from './pages/SupportPage';
+import DocumentationPage from './pages/DocumentationPage';
 
 export default function App() {
   return (
@@ -15,6 +19,10 @@ export default function App() {
           {/* Public */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/support" element={<SupportPage />} />
+          <Route path="/documentation" element={<DocumentationPage />} />
 
           {/* Protected — any authenticated user */}
           <Route path="/scan" element={<ProtectedRoute><QRScanner /></ProtectedRoute>} />

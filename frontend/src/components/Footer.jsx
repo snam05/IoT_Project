@@ -1,25 +1,19 @@
 import { Link } from 'react-router-dom';
 
 const legalLinks = [
-  { label: 'Privacy Policy', to: '#' },
-  { label: 'Terms of Service', to: '#' },
+  { label: 'Privacy Policy', to: '/privacy' },
+  { label: 'Terms of Service', to: '/terms' },
 ];
 
 const supportLinks = [
-  { label: 'Support', to: '#' },
-  { label: 'Documentation', to: '#' },
-  { label: 'API Reference', to: '#' },
+  { label: 'Support', to: '/support' },
+  { label: 'Documentation', to: '/documentation' },
 ];
 
-const companyLinks = [
-  { label: 'About Us', to: '#' },
-  { label: 'Careers', to: '#' },
-  { label: 'Press', to: '#' },
-];
-
-function FooterLinkList({ links }) {
+function FooterLinkList({ title, links }) {
   return (
     <div className="flex flex-col gap-3">
+      <div className="text-label-md font-bold text-primary mb-1">{title}</div>
       {links.map(({ label, to }) => (
         <Link
           key={label}
@@ -38,16 +32,15 @@ export default function Footer() {
     <footer className="bg-surface-bright text-on-surface w-full pt-section-padding pb-8 border-t border-outline-variant/20">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop mb-16">
         {/* Brand */}
-        <div className="col-span-2 md:col-span-1 mb-8 md:mb-0">
+        <div className="col-span-2 md:col-span-2 mb-8 md:mb-0">
           <div className="font-bold text-primary text-headline-md mb-4">LockerSystem</div>
-          <p className="text-label-md text-on-surface-variant">
-            Smart storage solutions for the future.
+          <p className="text-label-md text-on-surface-variant max-w-sm">
+            Smart, secure storage solutions designed with absolute elegance and built for the future.
           </p>
         </div>
 
-        <FooterLinkList links={legalLinks} />
-        <FooterLinkList links={supportLinks} />
-        <FooterLinkList links={companyLinks} />
+        <FooterLinkList title="Legal" links={legalLinks} />
+        <FooterLinkList title="Resources" links={supportLinks} />
       </div>
 
       <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop text-center md:text-left border-t border-outline-variant/10 pt-8">

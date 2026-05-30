@@ -85,7 +85,7 @@ function OverviewTab() {
 function LockersTab() {
   const [data, setData] = useState({ lockers: [], total: 0 });
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState({ status: '', zone: '', cabinetId: '' });
+  const [filter, setFilter] = useState({ status: '', cabinetId: '' });
   const [cabinets, setCabinets] = useState([]);
   const [actionLoading, setActionLoading] = useState(null);
 
@@ -132,11 +132,6 @@ function LockersTab() {
               {c.cabinetCode} ({c.identity})
             </option>
           ))}
-        </select>
-        <select value={filter.zone} onChange={e=>setFilter(f=>({...f,zone:e.target.value}))}
-          className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
-          <option value="">All Zones</option>
-          <option>A</option><option>B</option><option>C</option>
         </select>
         <button onClick={load} className="px-4 py-2 rounded-xl bg-secondary text-white text-label-md font-semibold hover:opacity-90 active:scale-95 transition-all">Refresh</button>
       </div>
