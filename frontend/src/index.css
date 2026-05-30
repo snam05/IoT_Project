@@ -83,15 +83,14 @@
   color: #1a1c1d;
 }
 
-/* ─── QR Scanner Animations ─────────────────────────────────── */
 @keyframes scan {
-  0%   { transform: translateY(-100%); }
-  50%  { transform: translateY(100%); }
-  100% { transform: translateY(-100%); }
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(300px); }
+  100% { transform: translateY(0); }
 }
 
 .scan-line {
-  animation: scan 3s linear infinite;
+  animation: scan 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 /* ─── Glassmorphism utility ──────────────────────────────────── */

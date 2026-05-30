@@ -57,6 +57,8 @@ export default function QRScanner() {
   const [scannerError, setScannerError] = useState('');
   const [scannerReady, setScannerReady] = useState(false);
   const [scannedText, setScannedText] = useState('');
+  const [hasTorch, setHasTorch] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
   const otpRefs = useRef([]);
   const scannerRef = useRef(null);
   const scanLockedRef = useRef(false);
@@ -136,6 +138,24 @@ export default function QRScanner() {
     submitUnlock(request);
   }, [submitUnlock]);
 
+  const toggleTorch = useCallback(async () => {
+    try {
+      const videoEl = document.querySelector('#qr-reader video');
+      if (videoEl && videoEl.srcObject) {
+        const track = videoEl.srcObject.getVideoTracks()[0];
+        if (track) {
+          const nextState = !torchOn;
+          await track.applyConstraints({
+            advanced: [{ torch: nextState }]
+          });
+          setTorchOn(nextState);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle torch:', err);
+    }
+  }, [torchOn]);
+
   useEffect(() => {
     if (tab !== 'qr') return undefined;
 
@@ -145,18 +165,51 @@ export default function QRScanner() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setScannerReady(false);
     setScannerError('');
+    setHasTorch(false);
+    setTorchOn(false);
 
     const startScanner = async () => {
       try {
         scanner = new Html5Qrcode('qr-reader', false);
         scannerRef.current = scanner;
         await scanner.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 260, height: 260 }, aspectRatio: 1 },
+          { 
+            facingMode: 'environment',
+            width: { min: 640, ideal: 1280, max: 1920 },
+            height: { min: 480, ideal: 720, max: 1080 }
+          },
+          { 
+            fps: 25, 
+            qrbox: (width, height) => {
+              const size = Math.min(width, height) * 0.65;
+              return { width: size, height: size };
+            }
+          },
           handleDecodedQr,
           () => {},
         );
-        if (!cancelled) setScannerReady(true);
+        
+        if (!cancelled) {
+          setScannerReady(true);
+          // Check for flashlight capability after stream is active
+          setTimeout(() => {
+            if (cancelled) return;
+            try {
+              const videoEl = document.querySelector('#qr-reader video');
+              if (videoEl && videoEl.srcObject) {
+                const track = videoEl.srcObject.getVideoTracks()[0];
+                if (track) {
+                  const capabilities = track.getCapabilities();
+                  if (capabilities.torch) {
+                    setHasTorch(true);
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('Failed to check torch support:', err);
+            }
+          }, 1000);
+        }
       } catch (err) {
         console.error('[qr scanner]', err);
         if (!cancelled) {
@@ -172,6 +225,8 @@ export default function QRScanner() {
       clearTimeout(timer);
       scanLockedRef.current = false;
       setScannerReady(false);
+      setHasTorch(false);
+      setTorchOn(false);
       if (scannerRef.current) {
         scannerRef.current.stop().catch(() => {}).finally(() => {
           scannerRef.current?.clear?.();
@@ -220,35 +275,48 @@ export default function QRScanner() {
       )}
 
       <div className="absolute inset-0 z-10 pointer-events-none flex flex-col">
-        <div className="flex-1 bg-black/70 backdrop-blur-[1px]" />
+        <div className="flex-1 bg-black/45" />
         <div className="flex">
-          <div className="flex-1 bg-black/70 backdrop-blur-[1px] h-[300px]" />
+          <div className="flex-1 bg-black/45 h-[300px]" />
           <div className="relative w-[300px] h-[300px] flex-shrink-0">
             {tab === 'qr' && (
               <>
-                <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-white rounded-tl-xl" />
-                <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-white rounded-tr-xl" />
-                <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-white rounded-bl-xl" />
-                <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-white rounded-br-xl" />
+                <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-[#00f0ff] rounded-tl-xl filter drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
+                <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-[#00f0ff] rounded-tr-xl filter drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
+                <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-[#00f0ff] rounded-bl-xl filter drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
+                <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-[#00f0ff] rounded-br-xl filter drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
                 <div
                   className="absolute top-0 left-0 w-full h-1 scan-line"
-                  style={{ background: '#0058bc', boxShadow: '0 0 8px rgba(0,88,188,0.8)' }}
+                  style={{ background: '#00f0ff', boxShadow: '0 0 12px rgba(0,240,255,0.9)' }}
                 />
               </>
             )}
           </div>
-          <div className="flex-1 bg-black/70 backdrop-blur-[1px] h-[300px]" />
+          <div className="flex-1 bg-black/45 h-[300px]" />
         </div>
-        <div className="flex-1 bg-black/70 backdrop-blur-[1px]" />
+        <div className="flex-1 bg-black/45" />
       </div>
 
-      <div className="absolute top-0 left-0 right-0 z-20 p-5">
+      <div className="absolute top-0 left-0 right-0 z-20 p-5 flex justify-between items-center">
         <button
           onClick={() => navigate(-1)}
           className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/30 transition-colors active:scale-95"
         >
           <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>close</span>
         </button>
+
+        {tab === 'qr' && hasTorch && (
+          <button
+            onClick={toggleTorch}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+              torchOn ? 'bg-yellow-400 text-black shadow-[0_0_15px_rgba(250,204,21,0.6)]' : 'bg-white/20 backdrop-blur-md text-white hover:bg-white/30'
+            }`}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>
+              {torchOn ? 'flashlight_off' : 'flashlight_on'}
+            </span>
+          </button>
+        )}
       </div>
 
       <div className="absolute top-16 left-0 right-0 z-20 flex justify-center px-5 mt-4">
