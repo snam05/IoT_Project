@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [profile, setProfile] = useState({
     name: 'John Smith',
     email: 'john.smith@example.com',
@@ -100,7 +102,17 @@ export default function ProfilePage() {
 
         {/* Logout */}
         <div className="ios-list-group">
-          <button className="ios-list-item w-full justify-center hover:bg-surface-container-lowest transition-colors active:scale-[0.98] duration-200">
+          <button 
+            onClick={async () => {
+              try {
+                await logout();
+                navigate('/login');
+              } catch (err) {
+                console.error('Logout failed:', err);
+              }
+            }}
+            className="ios-list-item w-full justify-center hover:bg-surface-container-lowest transition-colors active:scale-[0.98] duration-200"
+          >
             <span className="text-body-md text-error font-semibold">Sign Out</span>
           </button>
         </div>
