@@ -98,51 +98,80 @@ export default async function handler(req, res) {
       });
     }
 
-    if (cabinet) {
-      // If we had lockerId provided, verify the OTP now (it was already verified & marked used above if lockerId was omitted)
-      if (lockerId && resolvedCode) {
+    // First, check if the current user already has an active (IN_USE) locker in the entire system
+    const activeLocker = await prisma.locker.findFirst({
+      where: {
+        userId: payload.userId,
+        status: 'IN_USE'
+      },
+      include: { cabinet: true }
+    });
+
+    if (activeLocker) {
+      selectedLocker = activeLocker;
+      // Mark OTP as used if it was submitted
+      if (resolvedCode) {
+        const otpWhere = {
+          code: resolvedCode,
+          used: false,
+          expiresAt: { gt: new Date() },
+        };
+        if (cabinet) otpWhere.lockerId = cabinet.identity;
         const otp = await prisma.otp.findFirst({
-          where: {
-            lockerId: cabinet.identity,
-            code: resolvedCode,
-            used: false,
-            expiresAt: { gt: new Date() },
-          },
+          where: otpWhere,
           orderBy: { createdAt: 'desc' },
         });
-        if (!otp) return res.status(401).json({ error: 'Invalid or expired OTP code' });
-        await prisma.otp.update({ where: { id: otp.id }, data: { used: true, userId: payload.userId } });
-      }
-
-      if (compartmentNo != null) {
-        selectedLocker = cabinet.lockers.find(l => l.compartmentNo === compartmentNo);
-        if (!selectedLocker) {
-          return res.status(404).json({ error: `Compartment ${compartmentNo} not found in cabinet ${cabinetCode}` });
+        if (otp) {
+          await prisma.otp.update({ where: { id: otp.id }, data: { used: true, userId: payload.userId } });
         }
-      } else {
-        const availableLockers = cabinet.lockers.filter(l => l.status === 'AVAILABLE');
-        if (availableLockers.length === 0) {
-          const { publishCabinetOtp } = await import('../../lib/mqtt.js');
-          try {
-            await publishCabinetOtp(cabinet.cabinetCode, {
-              status: 'CABINET FULL',
-              message: 'No empty lockers!',
-            });
-          } catch (mqttErr) {
-            console.warn('[unlock] Failed to publish FULL status to MQTT:', mqttErr.message);
-          }
-
-          return res.status(409).json({ error: 'Cabinet is full. No available lockers.' });
-        }
-
-        const randomIndex = Math.floor(Math.random() * availableLockers.length);
-        selectedLocker = availableLockers[randomIndex];
       }
     } else {
-      selectedLocker = await prisma.locker.findUnique({
-        where: { lockerId: lockerId.toUpperCase() },
-        include: { cabinet: true }
-      });
+      if (cabinet) {
+        // If we had lockerId provided, verify the OTP now (it was already verified & marked used above if lockerId was omitted)
+        if (lockerId && resolvedCode) {
+          const otp = await prisma.otp.findFirst({
+            where: {
+              lockerId: cabinet.identity,
+              code: resolvedCode,
+              used: false,
+              expiresAt: { gt: new Date() },
+            },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (!otp) return res.status(401).json({ error: 'Invalid or expired OTP code' });
+          await prisma.otp.update({ where: { id: otp.id }, data: { used: true, userId: payload.userId } });
+        }
+
+        if (compartmentNo != null) {
+          selectedLocker = cabinet.lockers.find(l => l.compartmentNo === compartmentNo);
+          if (!selectedLocker) {
+            return res.status(404).json({ error: `Compartment ${compartmentNo} not found in cabinet ${cabinetCode}` });
+          }
+        } else {
+          const availableLockers = cabinet.lockers.filter(l => l.status === 'AVAILABLE');
+          if (availableLockers.length === 0) {
+            const { publishCabinetOtp } = await import('../../lib/mqtt.js');
+            try {
+              await publishCabinetOtp(cabinet.cabinetCode, {
+                status: 'CABINET FULL',
+                message: 'No empty lockers!',
+              });
+            } catch (mqttErr) {
+              console.warn('[unlock] Failed to publish FULL status to MQTT:', mqttErr.message);
+            }
+
+            return res.status(409).json({ error: 'Cabinet is full. No available lockers.' });
+          }
+
+          const randomIndex = Math.floor(Math.random() * availableLockers.length);
+          selectedLocker = availableLockers[randomIndex];
+        }
+      } else {
+        selectedLocker = await prisma.locker.findUnique({
+          where: { lockerId: lockerId.toUpperCase() },
+          include: { cabinet: true }
+        });
+      }
     }
 
     if (!selectedLocker) {

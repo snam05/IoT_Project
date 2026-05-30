@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Html5Qrcode } from 'html5-qrcode';
 
 const TABS = ['qr', 'otp'];
 
@@ -18,9 +19,10 @@ export default function QRScanner() {
   const [result, setResult] = useState(null); // { success, message }
   const otpRefs = useRef([]);
 
-  // QR scan state (simulated — replace with real camera when HTTPS available)
-  const [scanning, setScanning] = useState(true);
+  // QR scan state
+  const [scanning, setScanning] = useState(false);
   const [scannedId, setScannedId] = useState('');
+  const [scannerError, setScannerError] = useState('');
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.5, 3));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.5, 0.5));
@@ -96,9 +98,91 @@ export default function QRScanner() {
     submitUnlock('qr');
   };
 
+  useEffect(() => {
+    let html5Qrcode = null;
+
+    if (tab === 'qr') {
+      setScanning(true);
+      setScannerError('');
+      
+      const timer = setTimeout(() => {
+        try {
+          html5Qrcode = new Html5Qrcode("qr-reader");
+          
+          const qrCodeSuccessCallback = (decodedText) => {
+            html5Qrcode.stop()
+              .then(() => {
+                setScanning(false);
+                submitUnlock('qr', decodedText);
+              })
+              .catch(err => {
+                console.warn('Failed to stop scanner on success:', err);
+                submitUnlock('qr', decodedText);
+              });
+          };
+
+          const qrCodeErrorCallback = () => {
+            // Silence noisey camera frame errors
+          };
+
+          html5Qrcode.start(
+            { facingMode: "environment" },
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 },
+            },
+            qrCodeSuccessCallback,
+            qrCodeErrorCallback
+          ).catch(err => {
+            console.error('Failed to start QR scanner:', err);
+            setScannerError('Could not access camera. Please allow permission or use simulated scan / OTP.');
+          });
+        } catch (e) {
+          console.error('Scanner init error:', e);
+        }
+      }, 300);
+
+      return () => {
+        clearTimeout(timer);
+        if (html5Qrcode) {
+          if (html5Qrcode.isScanning) {
+            html5Qrcode.stop().catch(err => console.warn('Failed to stop scanner on unmount:', err));
+          }
+        }
+      };
+    }
+  }, [tab]);
+
   return (
     <div className="bg-primary text-on-primary h-screen w-screen overflow-hidden relative flex flex-col items-center justify-center">
-      {/* Camera Background */}
+      <style>{`
+        #qr-reader {
+          border: none !important;
+        }
+        #qr-reader video {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+          border-radius: 1rem;
+        }
+      `}</style>
+
+      {/* Real QR Scanner Viewport */}
+      {tab === 'qr' && (
+        <div 
+          id="qr-reader" 
+          className="absolute z-0 overflow-hidden rounded-2xl bg-black/40"
+          style={{
+            width: '300px',
+            height: '300px',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+          }}
+        />
+      )}
+
+      {/* Camera Background Placeholder */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center"
         style={{
@@ -118,10 +202,10 @@ export default function QRScanner() {
           <div className="relative w-[300px] h-[300px] flex-shrink-0">
             {tab === 'qr' && (
               <>
-                <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-white rounded-tl-xl" />
-                <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-white rounded-tr-xl" />
-                <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-white rounded-bl-xl" />
-                <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-white rounded-br-xl" />
+                <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-white rounded-tl-xl animate-pulse" />
+                <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-white rounded-tr-xl animate-pulse" />
+                <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-white rounded-bl-xl animate-pulse" />
+                <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-white rounded-br-xl animate-pulse" />
                 <div
                   className="absolute top-0 left-0 w-full h-1 scan-line"
                   style={{ background: '#0058bc', boxShadow: '0 0 8px rgba(0,88,188,0.8)' }}
@@ -175,6 +259,13 @@ export default function QRScanner() {
             <p className="text-body-md text-white/70">Align the QR code within the frame to unlock the locker</p>
           </div>
 
+          {/* Camera Access Error Message */}
+          {scannerError && (
+            <div className="absolute z-20 top-2/3 px-6 text-center text-xs text-red-200 bg-red-900/60 py-3 rounded-xl backdrop-blur-md max-w-xs border border-red-500/30">
+              {scannerError}
+            </div>
+          )}
+
           {/* Locker ID manual input (fallback for QR) */}
           <div className="absolute z-20 flex flex-col items-center gap-3" style={{ top: 'calc(50% + 160px)' }}>
             <button
@@ -182,7 +273,7 @@ export default function QRScanner() {
               disabled={submitting}
               className="bg-secondary text-white text-label-md font-semibold px-8 py-3 rounded-full hover:opacity-90 active:scale-95 transition-all shadow-cta disabled:opacity-50"
             >
-              {submitting ? 'Processing...' : 'Confirm QR Unlock'}
+              {submitting ? 'Processing...' : 'Simulate Scan (Demo)'}
             </button>
           </div>
 

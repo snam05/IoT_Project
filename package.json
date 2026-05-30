@@ -28,13 +28,14 @@
     "bcryptjs": "^3.0.3",
     "cookie": "^1.1.1",
     "dotenv": "^17.4.2",
+    "html5-qrcode": "^2.3.8",
     "jsonwebtoken": "^9.0.3",
     "mariadb": "^3.5.2",
     "mqtt": "^5.15.1",
+    "prisma": "^7.8.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^7.16.0",
-    "prisma": "^7.8.0"
+    "react-router-dom": "^7.16.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

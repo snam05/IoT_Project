@@ -256,7 +256,7 @@ void loop() {
   unsigned long now = millis();
 
   if (isTempDisplayActive) {
-    if (now - tempDisplayStartedAt >= 4000) {
+    if (now - tempDisplayStartedAt >= 3000) {
       isTempDisplayActive = false;
       cabinetStatus = "APPROVED";
       requestOtp();
