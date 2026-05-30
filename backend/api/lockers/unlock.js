@@ -168,13 +168,6 @@ export default async function handler(req, res) {
       }
     });
 
-    // Delete used OTP on success
-    if (resolvedCode) {
-      await prisma.otp.deleteMany({
-        where: { code: resolvedCode }
-      });
-    }
-
     // ── Log ───────────────────────────────────────────────────
     await prisma.lockerLog.create({
       data: {

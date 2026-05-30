@@ -1,17 +1,22 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const from = location.state?.from;
+  const fallbackPath = user?.role === 'ADMIN' ? '/dashboard' : '/scan';
+  const redirectTo = from ? `${from.pathname || '/scan'}${from.search || ''}` : fallbackPath;
+
   // Already logged in → redirect
   if (user) {
-    return <Navigate to={user.role === 'ADMIN' ? '/dashboard' : '/scan'} replace />;
+    return <Navigate to={redirectTo} replace />;
   }
 
   const handleSubmit = async (e) => {
@@ -20,7 +25,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const u = await login(form.username.trim(), form.password);
-      navigate(u.role === 'ADMIN' ? '/dashboard' : '/scan', { replace: true });
+      const defaultPath = u.role === 'ADMIN' ? '/dashboard' : '/scan';
+      const targetPath = from ? `${from.pathname || '/scan'}${from.search || ''}` : defaultPath;
+      navigate(targetPath, { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {

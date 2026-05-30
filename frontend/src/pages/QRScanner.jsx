@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
+
+function requestFromParams(params) {
+  const code = params.get('code') || params.get('otp');
+  const lockerId = params.get('lockerId') || params.get('locker');
+  const cabinetCode = params.get('cabinetCode') || params.get('cabinet');
+  const compartmentNo = params.get('compartmentNo') || params.get('compartment');
+
+  if (lockerId) return { method: 'qr', lockerId: lockerId.trim().toUpperCase(), ...(code ? { code: code.trim() } : {}) };
+  if (cabinetCode && compartmentNo && code) return { method: 'qr', lockerId: `${cabinetCode.trim().toUpperCase()}:${compartmentNo.trim()}`, code: code.trim() };
+  if (cabinetCode && code) return { method: 'qr', lockerId: `${cabinetCode.trim().toUpperCase()}:${code.trim()}` };
+  if (code && /^\d{6}$/.test(code.trim())) return { method: 'otp', code: code.trim() };
+  return null;
+}
 
 function buildQrRequest(rawValue) {
   const value = String(rawValue || '').trim();
@@ -29,10 +42,26 @@ function buildQrRequest(rawValue) {
 
   try {
     const url = new URL(value);
-    const request = fromObject(Object.fromEntries(url.searchParams.entries()));
+    const request = requestFromParams(url.searchParams) || fromObject(Object.fromEntries(url.searchParams.entries()));
     if (request) return request;
   } catch {
-    // Not a URL.
+    // Not an absolute URL.
+  }
+
+  if (value.startsWith('/')) {
+    try {
+      const url = new URL(value, window.location.origin);
+      const request = requestFromParams(url.searchParams) || fromObject(Object.fromEntries(url.searchParams.entries()));
+      if (request) return request;
+    } catch {
+      // Not a relative app URL.
+    }
+  }
+
+  if (value.includes('?')) {
+    const [, queryString] = value.split('?');
+    const request = requestFromParams(new URLSearchParams(queryString));
+    if (request) return request;
   }
 
   if (/^\d{6}$/.test(value)) return { method: 'otp', code: value };
@@ -50,7 +79,13 @@ function formatLockerId(lockerId) {
 
 export default function QRScanner() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState('qr');
+  const location = useLocation();
+  const initialRequestRef = useRef(null);
+  const initialRequest = requestFromParams(new URLSearchParams(location.search));
+  initialRequestRef.current ??= initialRequest;
+  const [tab, setTab] = useState(() => (
+    initialRequest || new URLSearchParams(location.search).get('tab') === 'otp' ? 'otp' : 'qr'
+  ));
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -116,6 +151,18 @@ export default function QRScanner() {
     const code = otpDigits.join('');
     submitUnlock({ method: 'otp', code });
   };
+
+  useEffect(() => {
+    const request = initialRequestRef.current;
+    if (!request || scanLockedRef.current) return;
+    scanLockedRef.current = true;
+    if (request.code && /^\d{6}$/.test(request.code)) {
+      setOtpDigits(request.code.split(''));
+    }
+    setScannedText(new URLSearchParams(location.search).toString());
+    submitUnlock(request);
+    initialRequestRef.current = null;
+  }, [location.search, submitUnlock]);
 
   const handleDecodedQr = useCallback((decodedText) => {
     if (scanLockedRef.current) return;
