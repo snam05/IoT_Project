@@ -152,22 +152,27 @@ void drawOtpScreen() {
   display.drawString(64, 0, cabinetIdentity);
 
   // Progress Bar in Yellow Region (y = 12, height = 3)
-  if (progressWidth > 0) {
+  if (progressWidth > 0 && currentCode != "------") {
     display.fillRect(0, 12, progressWidth, 3);
   }
 
-  // 2. Left Half (x = 0 to 63): Perfect Symmetrical QR Code (Version 1, 21x21 modules -> 42x42 pixels)
-  // Center of left half is x = 32. QR code is 42x42 pixels.
-  // White quiet zone background: x = 9 to 55 (width 46), y = 16 to 62 (height 46)
-  display.fillRect(9, 16, 46, 46);
-  
-  display.setColor(BLACK);
-  for (uint8_t y = 0; y < qrcode.size; y++) {
-    for (uint8_t x = 0; x < qrcode.size; x++) {
-      if (qrcode_getModule(&qrcode, x, y)) {
-        display.fillRect(11 + (x * 2), 18 + (y * 2), 2, 2);
+  // 2. Left Half (x = 0 to 63): Symmetrical QR Code or Loading state
+  if (currentCode != "------") {
+    // White quiet zone background: x = 9 to 55 (width 46), y = 16 to 62 (height 46)
+    display.fillRect(9, 16, 46, 46);
+    
+    display.setColor(BLACK);
+    for (uint8_t y = 0; y < qrcode.size; y++) {
+      for (uint8_t x = 0; x < qrcode.size; x++) {
+        if (qrcode_getModule(&qrcode, x, y)) {
+          display.fillRect(11 + (x * 2), 18 + (y * 2), 2, 2);
+        }
       }
     }
+  } else {
+    display.setFont(ArialMT_Plain_10);
+    display.setTextAlignment(TEXT_ALIGN_CENTER);
+    display.drawString(32, 32, "Loading...");
   }
 
   // 3. Right Half (x = 64 to 127): Symmetrical stacked OTP code (3 on top, 3 below)
@@ -202,6 +207,11 @@ void requestOtp() {
     Serial.println("[OTP] Ignored duplicate OTP request (debounced)");
     return;
   }
+  
+  // Clear the old OTP code to prevent the user from scanning a used code while waiting for the new one
+  currentCode = "------";
+  currentQrPayload = "";
+  
   otpRequestSeq++;
   lastOtpRequestId = String(CABINET_CODE) + "-" + String((uint32_t)ESP.getEfuseMac(), HEX) + "-" + String(otpRequestSeq);
   otpRequestPending = true;

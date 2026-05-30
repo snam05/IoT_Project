@@ -178,15 +178,11 @@ export default async function handler(req, res) {
       }
     });
 
-    // Invalidate OTP cache and delete used OTP on success
+    // Delete used OTP on success
     if (resolvedCode) {
       await prisma.otp.deleteMany({
         where: { code: resolvedCode }
       });
-      if (cabinet) {
-        const { invalidateCabinetOtpCache } = await import('../../lib/cabinet.js');
-        invalidateCabinetOtpCache(cabinet.identity);
-      }
     }
 
     // ── Log ───────────────────────────────────────────────────

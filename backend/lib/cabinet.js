@@ -184,107 +184,37 @@ export async function deleteCabinet(cabinetId) {
   });
 }
 
-// Global in-memory cache to prevent race conditions during concurrent OTP requests
-const otpCache = {};
-const otpLocks = new Map();
-
-async function withCabinetOtpLock(cabinetIdentity, fn) {
-  const previous = otpLocks.get(cabinetIdentity) || Promise.resolve();
-  let release;
-  const current = new Promise((resolve) => {
-    release = resolve;
-  });
-  const entry = previous.catch(() => {}).then(() => current);
-  otpLocks.set(cabinetIdentity, entry);
-
-  await previous.catch(() => {});
-  try {
-    return await fn();
-  } finally {
-    release();
-    if (otpLocks.get(cabinetIdentity) === entry) {
-      otpLocks.delete(cabinetIdentity);
-    }
-  }
-}
-
 export async function createCabinetOtp(input) {
   const hello = await recordCabinetHello(input);
   if (hello.status !== 'APPROVED') return hello;
 
   const cabinetIdentity = hello.cabinet.identity;
+  const now = Date.now();
 
-  return withCabinetOtpLock(cabinetIdentity, async () => {
-    const now = Date.now();
+  const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
+  const expiresAt = new Date(now + 30_000);
 
-    const activeOtpResponse = (otp) => ({
-      status: 'APPROVED',
-      cabinet: hello.cabinet,
-      code: otp.code,
-      expiresAt: otp.expiresAt,
-      expiresIn: Math.max(0, Math.floor((otp.expiresAt.getTime() - now) / 1000)),
-      qrPayload: otp.code,
-    });
-
-    // Reuse the active OTP for the whole 30s window. Duplicate MQTT deliveries or
-    // reconnect bursts must not make the OLED redraw with a new code immediately.
-    const cached = otpCache[cabinetIdentity];
-    if (cached && cached.expiresAt.getTime() > now + 1000) {
-      return activeOtpResponse(cached);
-    }
-
-    const activeOtp = await prisma.otp.findFirst({
-      where: {
-        lockerId: cabinetIdentity,
-        expiresAt: { gt: new Date(now + 1000) },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (activeOtp) {
-      otpCache[cabinetIdentity] = {
-        code: activeOtp.code,
-        createdAt: activeOtp.createdAt.getTime(),
-        expiresAt: activeOtp.expiresAt,
-      };
-      return activeOtpResponse(activeOtp);
-    }
-
-    const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
-    const expiresAt = new Date(now + 30_000);
-
-    // Synchronously update the in-memory cache immediately to prevent any concurrent race conditions
-    otpCache[cabinetIdentity] = {
-      code,
-      createdAt: now,
-      expiresAt,
-    };
-
-    // Delete all existing OTPs for this cabinet to prevent database bloating
-    await prisma.otp.deleteMany({
-      where: { lockerId: cabinetIdentity }
-    });
-
-    await prisma.otp.create({
-      data: {
-        code,
-        lockerId: cabinetIdentity,
-        userId: null,
-        expiresAt,
-        used: false,
-      },
-    });
-
-    return {
-      status: 'APPROVED',
-      cabinet: hello.cabinet,
-      code,
-      expiresAt,
-      expiresIn: 30,
-      qrPayload: code,
-    };
+  // Delete all existing OTPs for this cabinet immediately to auto-invalidate the old code
+  await prisma.otp.deleteMany({
+    where: { lockerId: cabinetIdentity }
   });
-}
 
-export function invalidateCabinetOtpCache(cabinetIdentity) {
-  delete otpCache[cabinetIdentity];
+  await prisma.otp.create({
+    data: {
+      code,
+      lockerId: cabinetIdentity,
+      userId: null,
+      expiresAt,
+      used: false,
+    },
+  });
+
+  return {
+    status: 'APPROVED',
+    cabinet: hello.cabinet,
+    code,
+    expiresAt,
+    expiresIn: 30,
+    qrPayload: code,
+  };
 }
