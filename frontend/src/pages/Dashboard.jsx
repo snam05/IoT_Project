@@ -1,8 +1,9 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import TopNavBar from '../components/TopNavBar';
 import AdminCabinetsTab from './AdminCabinetsTab';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { useAuth } from '../context/AuthContext';
 
 const TABS = [
   { key: 'overview', icon: 'dashboard', label: 'Overview' },
@@ -86,9 +87,24 @@ function OverviewTab() {
 function LockersTab() {
   const [data, setData] = useState({ lockers: [], total: 0 });
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState({ status: '', cabinetId: '' });
+  const [filter, setFilter] = useState({ status: '', cabinetId: '', zone: '' });
   const [cabinets, setCabinets] = useState([]);
   const [actionLoading, setActionLoading] = useState(null);
+
+  const zones = useMemo(() => {
+    const set = new Set();
+    cabinets.forEach(c => {
+      if (c.cabinetCode) {
+        set.add(c.cabinetCode.slice(0, 10).toUpperCase());
+      }
+    });
+    data.lockers.forEach(l => {
+      if (l.zone) {
+        set.add(l.zone.toUpperCase());
+      }
+    });
+    return Array.from(set).sort();
+  }, [cabinets, data.lockers]);
 
   useEffect(() => {
     fetch('/api/admin/cabinets?limit=100', { credentials: 'include' })
@@ -154,6 +170,13 @@ function LockersTab() {
           className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
           <option value="">All Status</option>
           <option>AVAILABLE</option><option>IN_USE</option><option>MAINTENANCE</option>
+        </select>
+        <select value={filter.zone} onChange={e=>setFilter(f=>({...f,zone:e.target.value}))}
+          className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
+          <option value="">All Zones</option>
+          {zones.map(z => (
+            <option key={z} value={z}>{z}</option>
+          ))}
         </select>
         <select value={filter.cabinetId} onChange={e=>setFilter(f=>({...f,cabinetId:e.target.value}))}
           className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
@@ -290,6 +313,7 @@ function LockersTab() {
 
 // ── Users Tab ─────────────────────────────────────────────────
 function UsersTab() {
+  const { user: currentUser } = useAuth();
   const [data, setData] = useState({ users: [], total: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -483,7 +507,9 @@ function UsersTab() {
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button onClick={()=>toggleActive(u.id, u.isActive)}
-                          className={`px-3 py-1 rounded-lg text-xs font-semibold active:scale-95 transition-all ${u.isActive?'bg-yellow-100 text-yellow-700 hover:bg-yellow-200':'bg-green-100 text-green-700 hover:bg-green-200'}`}>
+                          disabled={u.id === currentUser?.id}
+                          title={u.id === currentUser?.id ? "You cannot deactivate your own account" : ""}
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${u.isActive?'bg-yellow-100 text-yellow-700 hover:bg-yellow-200':'bg-green-100 text-green-700 hover:bg-green-200'}`}>
                           {u.isActive ? 'Deactivate' : 'Activate'}
                         </button>
                         <button onClick={()=>setResettingUser(u)}
@@ -491,7 +517,9 @@ function UsersTab() {
                           Reset PW
                         </button>
                         <button onClick={()=>setDeletingUser(u)}
-                          className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all">
+                          disabled={u.id === currentUser?.id}
+                          title={u.id === currentUser?.id ? "You cannot delete your own account" : ""}
+                          className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                           Delete
                         </button>
                       </div>
