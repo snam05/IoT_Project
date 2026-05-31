@@ -1,9 +1,10 @@
+import bcrypt from 'bcryptjs';
 import prisma from '../../../lib/prisma.js';
 import { requireAdmin } from '../../../lib/auth.js';
 
 /**
  * GET    /api/admin/users/[id]  — user detail
- * PUT    /api/admin/users/[id]  — toggle isActive or change role
+ * PUT    /api/admin/users/[id]  — toggle isActive, change role, or reset password
  * DELETE /api/admin/users/[id]  — delete user
  */
 export default async function handler(req, res) {
@@ -37,15 +38,21 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── PUT — toggle active / change role ─────────────────────
+  // ── PUT — toggle active / change role / reset password ────
   if (req.method === 'PUT') {
     if (id === payload.userId) {
       return res.status(400).json({ error: 'Cannot modify your own account via admin panel' });
     }
-    const { isActive, role } = req.body || {};
+    const { isActive, role, password } = req.body || {};
     const data = {};
     if (isActive !== undefined) data.isActive = Boolean(isActive);
     if (role && ['USER', 'ADMIN'].includes(role)) data.role = role;
+    if (password !== undefined) {
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      }
+      data.passwordHash = await bcrypt.hash(password, 12);
+    }
 
     try {
       const user = await prisma.user.update({
@@ -53,11 +60,16 @@ export default async function handler(req, res) {
         data,
         select: { id: true, username: true, role: true, isActive: true },
       });
+      
+      const logDetails = password !== undefined
+        ? `Reset password and updated user #${id}: ${JSON.stringify({ ...data, passwordHash: '[REDACTED]' })}`
+        : `Updated user #${id}: ${JSON.stringify(data)}`;
+
       await prisma.systemLog.create({
         data: {
           userId: payload.userId,
           action: 'update_user',
-          details: `Updated user #${id}: ${JSON.stringify(data)}`,
+          details: logDetails,
         },
       });
       return res.status(200).json({ success: true, user });

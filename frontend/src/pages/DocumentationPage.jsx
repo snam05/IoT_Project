@@ -398,145 +398,157 @@ void loop() {
 }
 `;
 
-const DOCS_SECTIONS = [
-  {
-    id: 'overview',
-    title: 'System Overview',
-    icon: 'info',
-    content: (
-      <>
-        <p>
-          LockerSystem is an end-to-end, IoT-powered smart storage solution designed to simplify physical personal asset storage.
-          The ecosystem consists of physical micro-controller integrated cabinets (ESP32), a lightweight secure Node.js backend
-          powered by Prisma and SQLite/MySQL, and an elegant Apple Human Interface Guidelines-compliant React web client.
-        </p>
-        <p>
-          Communication between physical smart hardware and the server is handled via MQTT protocols, offering secure, instant, 
-          real-time locking and unlocking operations with offline fallback support using dynamic OTP verification.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: 'user-guide',
-    title: 'User Guide',
-    icon: 'person',
-    content: (
-      <>
-        <p>As a regular user, you can easily control and monitor your assigned compartments:</p>
-        <div className="space-y-4 my-6">
-          <div className="flex gap-4 items-start">
-            <span className="w-6 h-6 rounded-full bg-primary text-on-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
-            <div>
-              <strong className="text-primary block mb-0.5">Access the Locker App</strong>
-              <span className="text-body-md">Log in to your LockerSystem portal on your mobile phone or desktop computer.</span>
-            </div>
-          </div>
-          <div className="flex gap-4 items-start">
-            <span className="w-6 h-6 rounded-full bg-primary text-on-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-            <div>
-              <strong className="text-primary block mb-0.5">Scan to Unlock</strong>
-              <span className="text-body-md">Navigate to the QR Scanner menu, grant camera permissions, and point your camera at the cabinet compartment's QR code. The compartment door will pop open instantly.</span>
-            </div>
-          </div>
-          <div className="flex gap-4 items-start">
-            <span className="w-6 h-6 rounded-full bg-primary text-on-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-            <div>
-              <strong className="text-primary block mb-0.5">Manage Your Assets</strong>
-              <span className="text-body-md">Close the cabinet door securely after placing or extracting your belongings. Locker logs will log the transaction.</span>
-            </div>
-          </div>
-        </div>
-      </>
-    ),
-  },
-  {
-    id: 'admin-guide',
-    title: 'Admin Guide',
-    icon: 'admin_panel_settings',
-    content: (
-      <>
-        <p>Administrators have elevated control over the entire system network:</p>
-        <ul className="list-disc pl-6 space-y-3 my-6">
-          <li>
-            <strong>Overview Dashboard:</strong> View stats including Total Lockers, Lockers In-Use, Available units, and maintenance requirements.
-          </li>
-          <li>
-            <strong>Locker Management:</strong> Inspect real-time status of locker compartments. Locks or Unlocks doors remotely, or flags compartments for Maintenance. Lockers can be filtered by Cabinet or status.
-          </li>
-          <li>
-            <strong>Cabinet Approvals:</strong> Approve or Reject new physical ESP32 cabinet devices trying to register with the secure system gateway. Lock or Unlock entire cabinets simultaneously.
-          </li>
-          <li>
-            <strong>User Auditing & Logs:</strong> Monitor active users and review detailed audit trials (locker unlock timestamps, IP logging, backend commands history) for complete system transparency.
-          </li>
-        </ul>
-      </>
-    ),
-  },
-  {
-    id: 'esp32-code',
-    title: 'ESP32 Client Code',
-    icon: 'developer_board',
-    content: (
-      <>
-        <p>
-          Below is the complete C++ firmware configuration designed to run on the physical ESP32 cabinet controllers.
-          It handles connecting to secure Wi-Fi, establishing a robust MQTT client connection, reporting heartbeat pings,
-          listening for dynamic unlock/lock instructions, and displaying server-assigned locker OTP codes and QR targets on an SSD1306 OLED screen.
-        </p>
-        <p className="text-body-sm text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-3 rounded-xl border border-amber-200/50">
-          <strong>Note:</strong> Make sure to customize the deployment configuration variables below with your local Wi-Fi SSID, Password, and MQTT broker credentials.
-        </p>
-        <div className="bg-surface-container-low rounded-2xl border border-outline-variant/10 overflow-hidden my-6">
-          <div className="bg-surface-container-high px-4 py-2 flex items-center justify-between border-b border-outline-variant/10">
-            <span className="font-mono text-xs font-semibold text-primary">esp32.ino</span>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(ESP32_CODE);
-              }}
-              className="px-3 py-1 rounded-lg bg-surface-container-lowest text-xs font-semibold text-primary hover:bg-surface-container hover:shadow-sm active:scale-95 transition-all"
-            >
-              Copy Code
-            </button>
-          </div>
-          <pre className="p-4 overflow-x-auto text-xs font-mono text-on-surface leading-normal max-h-96 select-all whitespace-pre">
-            <code>{ESP32_CODE}</code>
-          </pre>
-        </div>
-      </>
-    ),
-  },
-  {
-    id: 'troubleshooting',
-    title: 'Troubleshooting',
-    icon: 'build',
-    content: (
-      <>
-        <p>If you encounter unexpected errors or hardware lockouts:</p>
-        <div className="space-y-4 my-6">
-          <div className="p-5 bg-surface-container-low rounded-2xl border border-outline-variant/10">
-            <h4 className="text-body-lg font-bold text-primary mb-2">Cabinet Offline Status</h4>
-            <p className="text-body-md text-on-surface-variant">
-              If the physical smart cabinet has lost Wi-Fi connection, you can generate a secure One-Time PIN (OTP) 
-              offline in the Locker portal. Type the 6-digit pin directly into the cabinet physical numeric pad to gain access.
-            </p>
-          </div>
-          <div className="p-5 bg-surface-container-low rounded-2xl border border-outline-variant/10">
-            <h4 className="text-body-lg font-bold text-primary mb-2">QR Code Parsing Errors</h4>
-            <p className="text-body-md text-on-surface-variant">
-              Ensure that your camera has enough lighting when scanning the locker's physical QR label. If the scan fails, 
-              double-check your internet connection or log in using another browser/device.
-            </p>
-          </div>
-        </div>
-      </>
-    ),
-  },
-];
-
 export default function DocumentationPage() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(ESP32_CODE);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const DOCS_SECTIONS = [
+    {
+      id: 'overview',
+      title: 'System Overview',
+      icon: 'info',
+      content: (
+        <>
+          <p>
+            LockerSystem is an end-to-end, IoT-powered smart storage solution designed to simplify physical personal asset storage.
+            The ecosystem consists of physical micro-controller integrated cabinets (ESP32), a lightweight secure Node.js backend
+            powered by Prisma and SQLite/MySQL, and an elegant Apple Human Interface Guidelines-compliant React web client.
+          </p>
+          <p>
+            Communication between physical smart hardware and the server is handled via MQTT protocols, offering secure, instant, 
+            real-time locking and unlocking operations with offline fallback support using dynamic OTP verification.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: 'user-guide',
+      title: 'User Guide',
+      icon: 'person',
+      content: (
+        <>
+          <p>As a regular user, you can easily control and monitor your assigned compartments:</p>
+          <div className="space-y-4 my-6">
+            <div className="flex gap-4 items-start">
+              <span className="w-6 h-6 rounded-full bg-primary text-on-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+              <div>
+                <strong className="text-primary block mb-0.5">Access the Locker App</strong>
+                <span className="text-body-md">Log in to your LockerSystem portal on your mobile phone or desktop computer.</span>
+              </div>
+            </div>
+            <div className="flex gap-4 items-start">
+              <span className="w-6 h-6 rounded-full bg-primary text-on-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+              <div>
+                <strong className="text-primary block mb-0.5">Scan to Unlock</strong>
+                <span className="text-body-md">Navigate to the QR Scanner menu, grant camera permissions, and point your camera at the cabinet compartment's QR code. The compartment door will pop open instantly.</span>
+              </div>
+            </div>
+            <div className="flex gap-4 items-start">
+              <span className="w-6 h-6 rounded-full bg-primary text-on-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+              <div>
+                <strong className="text-primary block mb-0.5">Manage Your Assets</strong>
+                <span className="text-body-md">Close the cabinet door securely after placing or extracting your belongings. Locker logs will log the transaction.</span>
+              </div>
+            </div>
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'admin-guide',
+      title: 'Admin Guide',
+      icon: 'admin_panel_settings',
+      content: (
+        <>
+          <p>Administrators have elevated control over the entire system network:</p>
+          <ul className="list-disc pl-6 space-y-3 my-6">
+            <li>
+              <strong>Overview Dashboard:</strong> View stats including Total Lockers, Lockers In-Use, Available units, and maintenance requirements.
+            </li>
+            <li>
+              <strong>Locker Management:</strong> Inspect real-time status of locker compartments. Locks or Unlocks doors remotely, or flags compartments for Maintenance. Lockers can be filtered by Cabinet or status.
+            </li>
+            <li>
+              <strong>Cabinet Approvals:</strong> Approve or Reject new physical ESP32 cabinet devices trying to register with the secure system gateway. Lock or Unlock entire cabinets simultaneously.
+            </li>
+            <li>
+              <strong>User Auditing & Logs:</strong> Monitor active users and review detailed audit trials (locker unlock timestamps, IP logging, backend commands history) for complete system transparency.
+            </li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      id: 'esp32-code',
+      title: 'ESP32 Client Code',
+      icon: 'developer_board',
+      content: (
+        <>
+          <p>
+            Below is the complete C++ firmware configuration designed to run on the physical ESP32 cabinet controllers.
+            It handles connecting to secure Wi-Fi, establishing a robust MQTT client connection, reporting heartbeat pings,
+            listening for dynamic unlock/lock instructions, and displaying server-assigned locker OTP codes and QR targets on an SSD1306 OLED screen.
+          </p>
+          <p className="text-body-sm text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-3 rounded-xl border border-amber-200/50">
+            <strong>Note:</strong> Make sure to customize the deployment configuration variables below with your local Wi-Fi SSID, Password, and MQTT broker credentials.
+          </p>
+          <div className="bg-surface-container-low rounded-2xl border border-outline-variant/10 overflow-hidden my-6 w-full max-w-full">
+            <div className="bg-surface-container-high px-4 py-2 flex flex-wrap gap-2 items-center justify-between border-b border-outline-variant/10">
+              <span className="font-mono text-xs font-semibold text-primary">esp32.ino</span>
+              <button
+                onClick={handleCopy}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all duration-200 active:scale-95 ${
+                  copied
+                    ? 'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400 font-bold'
+                    : 'bg-surface-container-lowest text-primary hover:bg-surface-container'
+                }`}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
+                  {copied ? 'check' : 'content_copy'}
+                </span>
+                <span>{copied ? 'Copied!' : 'Copy Code'}</span>
+              </button>
+            </div>
+            <pre className="p-3 sm:p-4 overflow-x-auto text-xs font-mono text-on-surface leading-normal max-h-96 select-all whitespace-pre block w-full max-w-full scrollbar-thin">
+              <code className="block w-full min-w-max">{ESP32_CODE}</code>
+            </pre>
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'troubleshooting',
+      title: 'Troubleshooting',
+      icon: 'build',
+      content: (
+        <>
+          <p>If you encounter unexpected errors or hardware lockouts:</p>
+          <div className="space-y-4 my-6">
+            <div className="p-5 bg-surface-container-low rounded-2xl border border-outline-variant/10">
+              <h4 className="text-body-lg font-bold text-primary mb-2">Cabinet Offline Status</h4>
+              <p className="text-body-md text-on-surface-variant">
+                If the physical smart cabinet has lost Wi-Fi connection, you can generate a secure One-Time PIN (OTP) 
+                offline in the Locker portal. Type the 6-digit pin directly into the cabinet physical numeric pad to gain access.
+              </p>
+            </div>
+            <div className="p-5 bg-surface-container-low rounded-2xl border border-outline-variant/10">
+              <h4 className="text-body-lg font-bold text-primary mb-2">QR Code Parsing Errors</h4>
+              <p className="text-body-md text-on-surface-variant">
+                Ensure that your camera has enough lighting when scanning the locker's physical QR label. If the scan fails, 
+                double-check your internet connection or log in using another browser/device.
+              </p>
+            </div>
+          </div>
+        </>
+      ),
+    },
+  ];
 
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen flex flex-col">
@@ -575,11 +587,11 @@ export default function DocumentationPage() {
           </aside>
 
           {/* Docs Content */}
-          <section className="flex-1 bg-surface-container-lowest border border-outline-variant/10 rounded-3xl p-8 md:p-10 shadow-card">
+          <section className="flex-1 bg-surface-container-lowest border border-outline-variant/10 rounded-3xl p-8 md:p-10 shadow-card w-full max-w-full overflow-hidden">
             {DOCS_SECTIONS.map((sec) => {
               if (activeTab !== sec.id) return null;
               return (
-                <article key={sec.id} className="space-y-6 text-body-md text-on-surface-variant leading-relaxed">
+                <article key={sec.id} className="space-y-6 text-body-md text-on-surface-variant leading-relaxed w-full max-w-full">
                   <div className="flex items-center gap-3 mb-6">
                     <span className="material-symbols-outlined text-primary text-3xl">{sec.icon}</span>
                     <h2 className="text-headline-xl text-primary font-bold">{sec.title}</h2>

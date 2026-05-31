@@ -217,6 +217,12 @@ function UsersTab() {
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState('');
 
+  // Password reset state
+  const [resettingUser, setResettingUser] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetMsg, setResetMsg] = useState('');
+  const [resetting, setResetting] = useState(false);
+
   const load = useCallback(() => {
     setLoading(true);
     const q = new URLSearchParams({ limit: '50', ...(search ? {search} : {}) });
@@ -254,6 +260,31 @@ function UsersTab() {
       if (res.ok) { setMsg('User created!'); setShowCreate(false); setForm({username:'',email:'',name:'',password:'',role:'USER'}); load(); }
       else setMsg(d.error);
     } finally { setCreating(false); }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setResetting(true); setResetMsg('');
+    try {
+      const res = await fetch(`/api/admin/users/${resettingUser.id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        alert(`Password for ${resettingUser.name} has been reset successfully!`);
+        setResettingUser(null);
+        setNewPassword('');
+      } else {
+        setResetMsg(d.error || 'Failed to reset password');
+      }
+    } catch {
+      setResetMsg('Network error, please try again.');
+    } finally {
+      setResetting(false);
+    }
   };
 
   return (
@@ -299,6 +330,37 @@ function UsersTab() {
         </form>
       )}
 
+      {resettingUser && (
+        <form onSubmit={handleResetPassword} className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 mb-6">
+          <h3 className="text-headline-md text-primary font-semibold mb-4">Reset Password for {resettingUser.name} (@{resettingUser.username})</h3>
+          <div className="flex flex-col sm:flex-row gap-4 items-end max-w-xl">
+            <div className="flex-1 w-full">
+              <label className="text-label-md text-on-surface-variant mb-1 block">New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                required
+                minLength={8}
+                onChange={e=>setNewPassword(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-outline-variant bg-background text-body-md focus:outline-none focus:ring-2 focus:ring-secondary"
+                placeholder="At least 8 characters"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button type="submit" disabled={resetting}
+                className="px-6 py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-semibold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
+                {resetting ? 'Resetting...' : 'Update Password'}
+              </button>
+              <button type="button" onClick={()=>{setResettingUser(null); setNewPassword(''); setResetMsg('');}}
+                className="px-6 py-2.5 rounded-xl border border-outline-variant text-on-surface text-label-md hover:bg-surface-container-low transition-all whitespace-nowrap">
+                Cancel
+              </button>
+            </div>
+          </div>
+          {resetMsg && <p className="text-body-md text-error mt-2">{resetMsg}</p>}
+        </form>
+      )}
+
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -330,6 +392,10 @@ function UsersTab() {
                         <button onClick={()=>toggleActive(u.id, u.isActive)}
                           className={`px-3 py-1 rounded-lg text-xs font-semibold active:scale-95 transition-all ${u.isActive?'bg-yellow-100 text-yellow-700 hover:bg-yellow-200':'bg-green-100 text-green-700 hover:bg-green-200'}`}>
                           {u.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button onClick={()=>setResettingUser(u)}
+                          className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 active:scale-95 transition-all">
+                          Reset PW
                         </button>
                         <button onClick={()=>deleteUser(u.id, u.name)}
                           className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all">
