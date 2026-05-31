@@ -551,12 +551,42 @@ function LogTable({ endpoint, columns, rowFn }) {
   const [data, setData] = useState({ logs: [], total: 0, page: 1, pages: 1 });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [inputPage, setInputPage] = useState('1');
 
   useEffect(() => {
     setLoading(true);
     fetch(`${endpoint}?page=${page}&limit=20`, { credentials: 'include' })
       .then(r=>r.json()).then(setData).catch(()=>{}).finally(()=>setLoading(false));
   }, [endpoint, page]);
+
+  useEffect(() => {
+    setInputPage(String(page));
+  }, [page]);
+
+  const pageRange = useMemo(() => {
+    const totalPages = data.pages || 1;
+    const current = page;
+    const range = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) range.push(i);
+    } else {
+      let start = Math.max(1, current - 2);
+      let end = Math.min(totalPages, current + 2);
+
+      if (current <= 3) {
+        start = 1;
+        end = maxVisible;
+      } else if (current >= totalPages - 2) {
+        start = totalPages - maxVisible + 1;
+        end = totalPages;
+      }
+
+      for (let i = start; i <= end; i++) range.push(i);
+    }
+    return range;
+  }, [data.pages, page]);
 
   return (
     <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
@@ -572,13 +602,69 @@ function LogTable({ endpoint, columns, rowFn }) {
           </tbody>
         </table>
       </div>
-      <div className="px-4 py-3 border-t border-outline-variant/10 flex items-center justify-between">
+      <div className="px-4 py-3 border-t border-outline-variant/10 flex flex-wrap gap-4 items-center justify-between">
         <span className="text-label-md text-on-surface-variant">Page {data.page} of {data.pages} ({data.total} total)</span>
-        <div className="flex gap-2">
-          <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page<=1 || loading}
-            className="px-3 py-1.5 rounded-lg border border-outline-variant text-label-md disabled:opacity-40 hover:bg-surface-container-low transition-all">Prev</button>
-          <button onClick={()=>setPage(p=>Math.min(data.pages,p+1))} disabled={page>=data.pages || loading}
-            className="px-3 py-1.5 rounded-lg border border-outline-variant text-label-md disabled:opacity-40 hover:bg-surface-container-low transition-all">Next</button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page<=1 || loading}
+              className="p-2 rounded-xl border border-outline-variant text-label-md disabled:opacity-40 hover:bg-surface-container-low transition-all active:scale-95 disabled:scale-100 flex items-center justify-center"
+              title="Previous Page">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            {data.pages > 5 && page > 3 && (
+              <>
+                <button onClick={()=>setPage(1)} className="w-9 h-9 rounded-xl border border-outline-variant text-label-md hover:bg-surface-container-low transition-all active:scale-95 flex items-center justify-center">1</button>
+                {page > 4 && <span className="text-on-surface-variant/40 px-0.5">...</span>}
+              </>
+            )}
+
+            {pageRange.map(p => (
+              <button key={p} onClick={()=>setPage(p)} disabled={loading}
+                className={`w-9 h-9 rounded-xl text-label-md font-semibold transition-all active:scale-95 flex items-center justify-center ${page===p?'bg-primary text-on-primary shadow-sm':'border border-outline-variant hover:bg-surface-container-low'}`}>
+                {p}
+              </button>
+            ))}
+
+            {data.pages > 5 && page < data.pages - 2 && (
+              <>
+                {page < data.pages - 3 && <span className="text-on-surface-variant/40 px-0.5">...</span>}
+                <button onClick={()=>setPage(data.pages)} className="w-9 h-9 rounded-xl border border-outline-variant text-label-md hover:bg-surface-container-low transition-all active:scale-95 flex items-center justify-center">{data.pages}</button>
+              </>
+            )}
+
+            <button onClick={()=>setPage(p=>Math.min(data.pages,p+1))} disabled={page>=data.pages || loading}
+              className="p-2 rounded-xl border border-outline-variant text-label-md disabled:opacity-40 hover:bg-surface-container-low transition-all active:scale-95 disabled:scale-100 flex items-center justify-center"
+              title="Next Page">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+
+          {data.pages > 1 && (
+            <div className="flex items-center gap-2 pl-3 border-l border-outline-variant/30 text-label-md text-on-surface-variant">
+              <span>Go to:</span>
+              <input type="number" min={1} max={data.pages} value={inputPage}
+                onChange={e=>setInputPage(e.target.value)}
+                onBlur={() => {
+                  const p = parseInt(inputPage);
+                  if (p >= 1 && p <= data.pages) setPage(p);
+                  else setInputPage(String(page));
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    const p = parseInt(inputPage);
+                    if (p >= 1 && p <= data.pages) setPage(p);
+                    else setInputPage(String(page));
+                  }
+                }}
+                className="w-12 px-1.5 py-1 text-center rounded-lg border border-outline-variant bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-secondary font-semibold"
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
