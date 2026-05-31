@@ -8,6 +8,7 @@ const legalLinks = [
 const supportLinks = [
   { label: 'Support', to: '/support' },
   { label: 'Documentation', to: '/documentation' },
+  { label: 'Contact Us', to: '/contact' },
 ];
 
 function FooterLinkList({ title, links }) {

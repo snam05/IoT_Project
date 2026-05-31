@@ -11,6 +11,7 @@ import TermsPage from './pages/TermsPage';
 import SupportPage from './pages/SupportPage';
 import DocumentationPage from './pages/DocumentationPage';
 import RegisterPage from './pages/RegisterPage';
+import ContactPage from './pages/ContactPage';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/documentation" element={<DocumentationPage />} />
+          <Route path="/contact" element={<ContactPage />} />
 
           {/* Protected — any authenticated user */}
           <Route path="/scan" element={<ProtectedRoute><QRScanner /></ProtectedRoute>} />
