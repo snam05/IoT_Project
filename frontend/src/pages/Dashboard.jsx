@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import TopNavBar from '../components/TopNavBar';
 import AdminCabinetsTab from './AdminCabinetsTab';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const TABS = [
   { key: 'overview', icon: 'dashboard', label: 'Overview' },
@@ -223,6 +224,10 @@ function UsersTab() {
   const [resetMsg, setResetMsg] = useState('');
   const [resetting, setResetting] = useState(false);
 
+  // User deletion state
+  const [deletingUser, setDeletingUser] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   const load = useCallback(() => {
     setLoading(true);
     const q = new URLSearchParams({ limit: '50', ...(search ? {search} : {}) });
@@ -241,10 +246,18 @@ function UsersTab() {
     load();
   };
 
-  const deleteUser = async (id, name) => {
-    if (!confirm(`Delete user "${name}"?`)) return;
-    await fetch(`/api/admin/users/${id}`, { method:'DELETE', credentials:'include' });
-    load();
+  const handleConfirmDelete = async () => {
+    if (!deletingUser) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/admin/users/${deletingUser.id}`, { method:'DELETE', credentials:'include' });
+      load();
+      setDeletingUser(null);
+    } catch {
+      alert('Failed to delete user.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const createUser = async (e) => {
@@ -397,7 +410,7 @@ function UsersTab() {
                           className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 active:scale-95 transition-all">
                           Reset PW
                         </button>
-                        <button onClick={()=>deleteUser(u.id, u.name)}
+                        <button onClick={()=>setDeletingUser(u)}
                           className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all">
                           Delete
                         </button>
@@ -411,6 +424,16 @@ function UsersTab() {
         </div>
         <div className="px-4 py-3 border-t border-outline-variant/10 text-label-md text-on-surface-variant">Total: {data.total} users</div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!deletingUser}
+        title="Delete User"
+        message={`Are you sure you want to delete user "${deletingUser?.name}"? This action is permanent and cannot be undone.`}
+        confirmText="Delete User"
+        loading={deleting}
+        onConfirm={handleConfirmDelete}
+        onClose={()=>setDeletingUser(null)}
+      />
     </div>
   );
 }

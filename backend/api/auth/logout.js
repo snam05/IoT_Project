@@ -1,5 +1,6 @@
 import prisma from '../../lib/prisma.js';
 import { extractToken, verifyToken, buildClearCookie } from '../../lib/auth.js';
+import { getClientIp } from '../../lib/ip.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -13,11 +14,12 @@ export default async function handler(req, res) {
     const payload = verifyToken(token);
     if (payload) {
       try {
+        const ip = getClientIp(req);
         await prisma.systemLog.create({
           data: {
             userId: payload.userId,
             action: 'logout',
-            ipAddress: req.headers['x-forwarded-for'] || req.socket?.remoteAddress,
+            ipAddress: ip,
           },
         });
       } catch {/* non-critical */}

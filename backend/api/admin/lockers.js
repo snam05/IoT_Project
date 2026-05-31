@@ -2,6 +2,7 @@ import prisma from '../../lib/prisma.js';
 import { requireAdmin } from '../../lib/auth.js';
 import { generateTotpSecret } from '../../lib/otp.js';
 import { publishCommand } from '../../lib/mqtt.js';
+import { getClientIp } from '../../lib/ip.js';
 
 /**
  * GET  /api/admin/lockers?zone=&status=&page=1&limit=50
@@ -63,8 +64,9 @@ export default async function handler(req, res) {
         data: { lockerId: lockerId.toUpperCase(), zone: zone.toUpperCase(), floor: parseInt(floor), row: parseInt(row), col: parseInt(col), description, totpSecret },
         select: { lockerId: true, zone: true, floor: true, row: true, col: true, status: true, description: true },
       });
+      const ip = getClientIp(req);
       await prisma.systemLog.create({
-        data: { userId: payload.userId, action: 'create_locker', details: `Created locker ${lockerId}` },
+        data: { userId: payload.userId, action: 'create_locker', details: `Created locker ${lockerId}`, ipAddress: ip },
       });
       return res.status(201).json({ success: true, locker });
     } catch (err) {
@@ -118,8 +120,9 @@ export default async function handler(req, res) {
         });
       }
 
+      const ip = getClientIp(req);
       await prisma.systemLog.create({
-        data: { userId: payload.userId, action: 'update_locker', details: `${lockerId}: ${JSON.stringify({ status, action: resolvedAction })}` },
+        data: { userId: payload.userId, action: 'update_locker', details: `${lockerId}: ${JSON.stringify({ status, action: resolvedAction })}`, ipAddress: ip },
       });
 
       return res.status(200).json({ success: true, lockerId, status: locker.status });

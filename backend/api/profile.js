@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma.js';
 import { requireAuth } from '../lib/auth.js';
+import { getClientIp } from '../lib/ip.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -77,11 +78,13 @@ export default async function handler(req, res) {
         select: { id: true, username: true, email: true, name: true, role: true },
       });
 
+      const ip = getClientIp(req);
       await prisma.systemLog.create({
         data: {
           userId: payload.userId,
           action: 'update_profile',
           details: JSON.stringify({ fields: Object.keys(updateData) }),
+          ipAddress: ip,
         },
       });
 

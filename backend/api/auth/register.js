@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../../lib/prisma.js';
 import { signToken, buildAuthCookie } from '../../lib/auth.js';
+import { getClientIp } from '../../lib/ip.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -52,6 +53,8 @@ export default async function handler(req, res) {
       role: user.role,
     });
 
+    const ip = getClientIp(req);
+
     // Audit log
     prisma.systemLog
       .create({
@@ -59,7 +62,7 @@ export default async function handler(req, res) {
           userId: user.id,
           action: 'register',
           details: `Registered account: ${user.username}`,
-          ipAddress: req.headers['x-forwarded-for'] || req.socket?.remoteAddress,
+          ipAddress: ip,
         },
       })
       .catch((logErr) => console.error('[register:log]', logErr));

@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../../../lib/prisma.js';
 import { requireAdmin } from '../../../lib/auth.js';
+import { getClientIp } from '../../../lib/ip.js';
 
 /**
  * GET    /api/admin/users/[id]  — user detail
@@ -65,11 +66,13 @@ export default async function handler(req, res) {
         ? `Reset password and updated user #${id}: ${JSON.stringify({ ...data, passwordHash: '[REDACTED]' })}`
         : `Updated user #${id}: ${JSON.stringify(data)}`;
 
+      const ip = getClientIp(req);
       await prisma.systemLog.create({
         data: {
           userId: payload.userId,
           action: 'update_user',
           details: logDetails,
+          ipAddress: ip,
         },
       });
       return res.status(200).json({ success: true, user });
@@ -85,11 +88,13 @@ export default async function handler(req, res) {
     }
     try {
       await prisma.user.delete({ where: { id } });
+      const ip = getClientIp(req);
       await prisma.systemLog.create({
         data: {
           userId: payload.userId,
           action: 'delete_user',
           details: `Deleted user #${id}`,
+          ipAddress: ip,
         },
       });
       return res.status(200).json({ success: true });

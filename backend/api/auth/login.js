@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../../lib/prisma.js';
 import { signToken, buildAuthCookie } from '../../lib/auth.js';
+import { getClientIp } from '../../lib/ip.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -36,14 +37,16 @@ export default async function handler(req, res) {
       role: user.role,
     });
 
+    const ip = getClientIp(req);
+
     // Do not block login on audit logging; Vercel functions can hit the 10s limit during cold starts.
     prisma.systemLog
       .create({
         data: {
           userId: user.id,
           action: 'login',
-          details: `Login from ${req.headers['x-forwarded-for'] || 'unknown'}`,
-          ipAddress: req.headers['x-forwarded-for'] || req.socket?.remoteAddress,
+          details: `Login from ${ip}`,
+          ipAddress: ip,
         },
       })
       .catch((logErr) => console.error('[login:log]', logErr));

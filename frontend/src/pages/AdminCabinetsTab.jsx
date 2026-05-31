@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const STATUS_CLASS = {
   PENDING: 'bg-yellow-100 text-yellow-700',
@@ -49,17 +50,23 @@ export default function AdminCabinetsTab() {
     }
   };
 
-  const remove = async (cabinet) => {
-    if (!confirm(`Delete cabinet ${cabinet.identity}? ESP32 must be reset after this.`)) return;
-    setBusyId(cabinet.id);
+  const [deletingCabinet, setDeletingCabinet] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleConfirmDeleteCabinet = async () => {
+    if (!deletingCabinet) return;
+    setDeleting(true);
     setMessage('');
     try {
-      const res = await fetch(`/api/admin/cabinets?id=${cabinet.id}`, { method: 'DELETE', credentials: 'include' });
+      const res = await fetch(`/api/admin/cabinets?id=${deletingCabinet.id}`, { method: 'DELETE', credentials: 'include' });
       const body = await res.json();
       if (!res.ok) setMessage(body.error || 'Delete failed');
       load();
+      setDeletingCabinet(null);
+    } catch {
+      setMessage('Network error, failed to delete cabinet.');
     } finally {
-      setBusyId(null);
+      setDeleting(false);
     }
   };
 
@@ -126,7 +133,7 @@ export default function AdminCabinetsTab() {
                           Reject
                         </button>
                       )}
-                      <button onClick={() => remove(cabinet)} disabled={busyId === cabinet.id}
+                      <button onClick={() => setDeletingCabinet(cabinet)} disabled={busyId === cabinet.id}
                         className="px-3 py-1 rounded-lg border border-outline-variant text-on-surface-variant text-xs font-semibold hover:bg-surface-container-low active:scale-95 transition-all disabled:opacity-50">
                         Delete
                       </button>
@@ -139,6 +146,16 @@ export default function AdminCabinetsTab() {
         </div>
         <div className="px-4 py-3 border-t border-outline-variant/10 text-label-md text-on-surface-variant">Total: {data.total} cabinets</div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!deletingCabinet}
+        title="Delete Cabinet"
+        message={`Are you sure you want to delete cabinet "${deletingCabinet?.identity}"? The physical ESP32 cabinet will need to be reset after this action.`}
+        confirmText="Delete Cabinet"
+        loading={deleting}
+        onConfirm={handleConfirmDeleteCabinet}
+        onClose={()=>setDeletingCabinet(null)}
+      />
     </div>
   );
 }

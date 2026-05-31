@@ -2,6 +2,7 @@ import prisma from '../../lib/prisma.js';
 import { requireAdmin } from '../../lib/auth.js';
 import { approveCabinet, rejectCabinet, deleteCabinet } from '../../lib/cabinet.js';
 import { publishCabinetRegistration } from '../../lib/mqtt.js';
+import { getClientIp } from '../../lib/ip.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -42,13 +43,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'id and action (approve/reject/lock_all/unlock_all) are required' });
     }
 
+    const ip = getClientIp(req);
+
     try {
       if (action === 'approve' || action === 'reject') {
         const cabinet = action === 'approve' ? await approveCabinet(id) : await rejectCabinet(id);
         if (!cabinet) return res.status(404).json({ error: 'Cabinet not found' });
 
         await prisma.systemLog.create({
-          data: { userId: payload.userId, action: `${action}_cabinet`, details: `${cabinet.identity}` },
+          data: { userId: payload.userId, action: `${action}_cabinet`, details: `${cabinet.identity}`, ipAddress: ip },
         });
 
         publishCabinetRegistration(cabinet.cabinetCode, {
@@ -94,7 +97,7 @@ export default async function handler(req, res) {
         }
 
         await prisma.systemLog.create({
-          data: { userId: payload.userId, action: `${action}_cabinet`, details: `Cabinet ID: ${id} (${cabinet.identity})` },
+          data: { userId: payload.userId, action: `${action}_cabinet`, details: `Cabinet ID: ${id} (${cabinet.identity})`, ipAddress: ip },
         });
 
         return res.status(200).json({ success: true, message: `Cabinet compartments physically sent command to ${commandAction}` });
@@ -112,8 +115,9 @@ export default async function handler(req, res) {
 
     try {
       const cabinet = await deleteCabinet(id);
+      const ip = getClientIp(req);
       await prisma.systemLog.create({
-        data: { userId: payload.userId, action: 'delete_cabinet', details: `${cabinet.identity}` },
+        data: { userId: payload.userId, action: 'delete_cabinet', details: `${cabinet.identity}`, ipAddress: ip },
       });
       return res.status(200).json({ success: true, cabinet });
     } catch (err) {

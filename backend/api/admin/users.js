@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../../lib/prisma.js';
 import { requireAdmin } from '../../lib/auth.js';
+import { getClientIp } from '../../lib/ip.js';
 
 /**
  * GET  /api/admin/users?page=1&limit=20&search=
@@ -98,11 +99,13 @@ export default async function handler(req, res) {
         select: { id: true, username: true, email: true, name: true, role: true, createdAt: true },
       });
 
+      const ip = getClientIp(req);
       await prisma.systemLog.create({
         data: {
           userId: payload.userId,
           action: 'create_user',
           details: `Created user: ${user.username} (${role})`,
+          ipAddress: ip,
         },
       });
 
