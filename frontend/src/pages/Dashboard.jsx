@@ -396,20 +396,15 @@ export default function Dashboard() {
     <div className="bg-background text-on-surface antialiased min-h-screen">
       <TopNavBar />
       <main className="pt-36 pb-section-padding px-margin-mobile md:px-margin-desktop md:pt-24 max-w-container-max mx-auto">
-        <header className="mb-8">
-          <h1 className="text-display-lg text-primary font-bold mb-1">Admin Dashboard</h1>
-          <p className="text-body-lg text-on-surface-variant">Manage lockers, users, and monitor system activity</p>
-        </header>
-
         {/* Tab Bar */}
         <div className="flex gap-1 mb-8 bg-surface-container-lowest rounded-2xl p-1.5 border border-outline-variant/10 overflow-x-auto">
-          {TABS.map(t => (
-            <button key={t.key} onClick={()=>setActiveTab(t.key)}
+          {TABS.map(tab => (
+            <button key={tab.key} onClick={()=>setActiveTab(tab.key)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-label-md font-semibold transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
-                activeTab===t.key ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
+                activeTab===tab.key ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
               }`}>
-              <span className="material-symbols-outlined" style={{fontSize:'18px'}}>{t.icon}</span>
-              {t.label}
+              <span className="material-symbols-outlined" style={{fontSize:'18px'}}>{tab.icon}</span>
+              {tab.label}
             </button>
           ))}
         </div>
