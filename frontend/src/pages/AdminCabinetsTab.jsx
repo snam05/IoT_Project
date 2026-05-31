@@ -69,6 +69,34 @@ export default function AdminCabinetsTab() {
       setDeleting(false);
     }
   };
+  const [editingZoneCabinet, setEditingZoneCabinet] = useState(null);
+  const [newZone, setNewZone] = useState('');
+  const [zoneUpdating, setZoneUpdating] = useState(false);
+
+  const handleUpdateCabinetZone = async () => {
+    if (!editingZoneCabinet || !newZone.trim()) return;
+    setZoneUpdating(true);
+    setMessage('');
+    try {
+      const res = await fetch('/api/admin/lockers', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cabinetId: editingZoneCabinet.id, zone: newZone }),
+      });
+      const body = await res.json();
+      if (!res.ok) setMessage(body.error || 'Update zone failed');
+      else {
+        setEditingZoneCabinet(null);
+        setNewZone('');
+        load();
+      }
+    } catch {
+      setMessage('Network error, failed to update zone.');
+    } finally {
+      setZoneUpdating(false);
+    }
+  };
 
   return (
     <div>
@@ -119,6 +147,10 @@ export default function AdminCabinetsTab() {
                             className="px-3 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50">
                             Lock All
                           </button>
+                          <button onClick={() => setEditingZoneCabinet(cabinet)} disabled={busyId === cabinet.id}
+                            className="px-3 py-1 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-semibold hover:bg-indigo-200 active:scale-95 transition-all disabled:opacity-50">
+                            Edit Zone
+                          </button>
                         </>
                       )}
                       {cabinet.status !== 'APPROVED' && (
@@ -156,6 +188,44 @@ export default function AdminCabinetsTab() {
         onConfirm={handleConfirmDeleteCabinet}
         onClose={()=>setDeletingCabinet(null)}
       />
+
+      {/* Edit Zone Modal */}
+      {editingZoneCabinet && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-surface-container-lowest rounded-3xl p-6 shadow-card border border-outline-variant/10 transform scale-100 transition-all">
+            <h3 className="text-title-lg font-bold text-on-surface mb-2">Edit Cabinet Zone</h3>
+            <p className="text-body-md text-on-surface-variant mb-4">
+              Enter the new zone for all lockers in cabinet <span className="font-mono font-semibold text-primary">{editingZoneCabinet.identity}</span>.
+            </p>
+            <input
+              type="text"
+              value={newZone}
+              onChange={(e) => setNewZone(e.target.value.toUpperCase())}
+              placeholder="e.g. ZONE-A"
+              className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary mb-6 font-mono"
+              maxLength={10}
+              disabled={zoneUpdating}
+              autoFocus
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => { setEditingZoneCabinet(null); setNewZone(''); }}
+                disabled={zoneUpdating}
+                className="px-5 py-2.5 rounded-xl border border-outline-variant text-label-lg font-semibold hover:bg-surface-container-low active:scale-95 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateCabinetZone}
+                disabled={zoneUpdating || !newZone.trim()}
+                className="px-5 py-2.5 rounded-xl bg-secondary text-white text-label-lg font-semibold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+              >
+                {zoneUpdating ? 'Saving...' : 'Save Zone'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

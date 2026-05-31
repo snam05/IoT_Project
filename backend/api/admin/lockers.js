@@ -76,9 +76,71 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── PUT — update single locker status ────────────────────
+  // ── PUT — update locker status / floor / cabinet zone ────
   if (req.method === 'PUT') {
-    const { lockerId, status, action } = req.body || {};
+    const { lockerId, status, action, floor, zone, cabinetId } = req.body || {};
+
+    // 1. Bulk update zone by cabinetId
+    if (zone !== undefined && cabinetId !== undefined) {
+      try {
+        const cabIdParsed = parseInt(cabinetId);
+        const cabinet = await prisma.cabinet.findUnique({ where: { id: cabIdParsed } });
+        if (!cabinet) return res.status(404).json({ error: 'Cabinet not found' });
+
+        const zoneTrimmed = zone.toUpperCase().trim();
+        if (!zoneTrimmed) return res.status(400).json({ error: 'Zone cannot be empty' });
+
+        await prisma.locker.updateMany({
+          where: { cabinetId: cabIdParsed },
+          data: { zone: zoneTrimmed },
+        });
+
+        const ip = getClientIp(req);
+        await prisma.systemLog.create({
+          data: {
+            userId: payload.userId,
+            action: 'update_cabinet_zone',
+            details: `Cabinet ${cabinet.identity} set to zone ${zoneTrimmed}`,
+            ipAddress: ip,
+          },
+        });
+
+        return res.status(200).json({ success: true, message: `Zone updated to ${zoneTrimmed} for all lockers of cabinet ${cabinet.identity}` });
+      } catch (err) {
+        console.error('[admin/lockers PUT zone]', err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
+    // 2. Individual floor update
+    if (floor !== undefined) {
+      if (!lockerId) return res.status(400).json({ error: 'lockerId is required' });
+      try {
+        const floorParsed = parseInt(floor);
+        const locker = await prisma.locker.update({
+          where: { lockerId },
+          data: { floor: floorParsed },
+        });
+
+        const ip = getClientIp(req);
+        await prisma.systemLog.create({
+          data: {
+            userId: payload.userId,
+            action: 'update_locker_floor',
+            details: `Locker ${lockerId} set to floor ${floorParsed}`,
+            ipAddress: ip,
+          },
+        });
+
+        return res.status(200).json({ success: true, locker });
+      } catch (err) {
+        if (err.code === 'P2025') return res.status(404).json({ error: 'Locker not found' });
+        console.error('[admin/lockers PUT floor]', err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
+    // 3. Standard locker status/lock action update
     if (!lockerId) return res.status(400).json({ error: 'lockerId is required' });
 
     const validStatuses = ['AVAILABLE', 'IN_USE', 'MAINTENANCE'];
@@ -99,9 +161,6 @@ export default async function handler(req, res) {
       });
 
       // Auto-resolve physical action based on transition:
-      // - Status -> AVAILABLE (Unlock / Restore): physically unlock (LOW)
-      // - Status -> MAINTENANCE: physically lock (HIGH)
-      // - Status -> IN_USE (Lock): physically lock (HIGH)
       let resolvedAction = action;
       if (status === 'AVAILABLE') {
         resolvedAction = 'unlock';

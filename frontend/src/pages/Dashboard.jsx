@@ -117,6 +117,36 @@ function LockersTab() {
     setActionLoading(null);
   };
 
+  const [editingFloorLocker, setEditingFloorLocker] = useState(null);
+  const [newFloor, setNewFloor] = useState('');
+  const [floorUpdating, setFloorUpdating] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleUpdateFloor = async () => {
+    if (!editingFloorLocker || newFloor === '') return;
+    setFloorUpdating(true);
+    setErrorMsg('');
+    try {
+      const res = await fetch('/api/admin/lockers', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lockerId: editingFloorLocker.lockerId, floor: parseInt(newFloor) }),
+      });
+      const body = await res.json();
+      if (!res.ok) setErrorMsg(body.error || 'Update floor failed');
+      else {
+        setEditingFloorLocker(null);
+        setNewFloor('');
+        load();
+      }
+    } catch {
+      setErrorMsg('Network error, failed to update floor.');
+    } finally {
+      setFloorUpdating(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex flex-wrap gap-3 mb-6">
@@ -153,7 +183,18 @@ function LockersTab() {
                 <tr key={l.lockerId} className="hover:bg-surface-container-low transition-colors">
                   <td className="px-4 py-3 font-mono font-semibold text-primary">{formatLockerId(l)}</td>
                   <td className="px-4 py-3 text-on-surface-variant">{l.zone}</td>
-                  <td className="px-4 py-3 text-on-surface-variant">{l.floor}</td>
+                  <td className="px-4 py-3 text-on-surface-variant">
+                    <div className="flex items-center gap-1.5 group">
+                      <span>{l.floor}</span>
+                      <button onClick={() => { setEditingFloorLocker(l); setNewFloor(String(l.floor)); }}
+                        title="Edit Floor"
+                        className="p-1 rounded hover:bg-surface-container-high text-on-surface-variant/40 hover:text-primary active:scale-90 transition-all opacity-0 group-hover:opacity-100">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
                   <td className="px-4 py-3"><Badge status={l.status}/></td>
                    <td className="px-4 py-3">
                      {l.user?.role === 'ADMIN' ? (
@@ -204,6 +245,45 @@ function LockersTab() {
           Total: {data.total} lockers
         </div>
       </div>
+      {/* Edit Locker Floor Modal */}
+      {editingFloorLocker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-surface-container-lowest rounded-3xl p-6 shadow-card border border-outline-variant/10 transform scale-100 transition-all">
+            <h3 className="text-title-lg font-bold text-on-surface mb-2">Edit Locker Floor</h3>
+            <p className="text-body-md text-on-surface-variant mb-4">
+              Enter the new floor number for locker <span className="font-mono font-semibold text-primary">{editingFloorLocker.lockerId}</span>.
+            </p>
+            <input
+              type="number"
+              value={newFloor}
+              onChange={(e) => setNewFloor(e.target.value)}
+              placeholder="e.g. 1"
+              className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary mb-2"
+              min={0}
+              max={100}
+              disabled={floorUpdating}
+              autoFocus
+            />
+            {errorMsg && <p className="text-body-sm text-red-600 mb-4">{errorMsg}</p>}
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => { setEditingFloorLocker(null); setNewFloor(''); setErrorMsg(''); }}
+                disabled={floorUpdating}
+                className="px-5 py-2.5 rounded-xl border border-outline-variant text-label-lg font-semibold hover:bg-surface-container-low active:scale-95 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateFloor}
+                disabled={floorUpdating || newFloor === ''}
+                className="px-5 py-2.5 rounded-xl bg-secondary text-white text-label-lg font-semibold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+              >
+                {floorUpdating ? 'Saving...' : 'Save Floor'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
