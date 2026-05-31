@@ -60,7 +60,7 @@ export default function PrivacyPage() {
             <h2 className="text-headline-md text-primary font-bold">5. Contact Us</h2>
             <p>
               If you have questions or comments about this policy, you may email us at 
-              <span className="text-primary font-semibold"> privacy@lockersystem.local</span>.
+              <span className="text-primary font-semibold"> nampham.name@gmail.com </span>.
             </p>
           </section>
         </article>
