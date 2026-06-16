@@ -1,17 +1,19 @@
 /*
- * Smart Locker ESP32 Cabinet Client
+ * Smart Locker ESP32 Cabinet Client (TOTP Offline Version)
  *
- * One ESP32 controls one cabinet with N compartments. Configure CABINET_CODE and
- * COMPARTMENT_COUNT below before flashing. The ESP32 communicates only through
- * MQTT: it announces itself, waits for admin approval, then requests a fresh
- * 6-digit proximity code every 30 seconds and displays the server-issued code
- * as text + QR on a 0.96" SSD1306 OLED.
+ * One ESP32 controls one cabinet with N compartments. Communicates via MQTT for
+ * announcement and receiving commands, but calculates the 6-digit OTP offline
+ * using TOTP (Time-based One-time Password) synced via NTP.
  */
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <Wire.h>
+#include <Preferences.h>
+#include "time.h"
+#include <mbedtls/md.h>
+#include <mbedtls/base64.h>
 #include "SSD1306Wire.h"
 #include "qrcode.h"
 
@@ -35,26 +37,22 @@ PubSubClient mqtt(wifiClient);
 #define OLED_SCL 22
 SSD1306Wire display(0x3c, OLED_SDA, OLED_SCL);
 
-const unsigned long OTP_INTERVAL = 30000;
 const unsigned long HELLO_INTERVAL = 15000;
 const unsigned long RECONNECT_INTERVAL = 3000;
 const unsigned long DISPLAY_REFRESH_INTERVAL = 1000;
-const unsigned long DUPLICATE_OTP_WINDOW = 30000;
+
+Preferences preferences;
+String totpSecret = "";
 
 String cabinetIdentity;
 String currentCode = "------";
 String currentQrPayload = "";
 String cabinetStatus = "BOOT";
 String statusMessage = "Starting";
-unsigned long lastOtpRequest = 0;
 unsigned long lastHello = 0;
 unsigned long lastReconnectAttempt = 0;
 unsigned long lastDisplayRefresh = 0;
-unsigned long otpRequestSeq = 0;
 String lastProcessedMsgId = "";
-String lastOtpRequestId = "";
-bool otpRequestPending = false;
-unsigned long codeStartedAt = 0;
 String lastRenderedStatusTitle = "";
 String lastRenderedStatusDetail = "";
 String lastRenderedOtpCode = "";
@@ -79,8 +77,6 @@ uint8_t qrcodeBytes[128];
 
 String topicHello() { return "lockersystem/cabinet/" + String(CABINET_CODE) + "/hello"; }
 String topicRegistration() { return "lockersystem/cabinet/" + String(CABINET_CODE) + "/registration"; }
-String topicOtpRequest() { return "lockersystem/cabinet/" + String(CABINET_CODE) + "/otp/request"; }
-String topicOtpResponse() { return "lockersystem/cabinet/" + String(CABINET_CODE) + "/otp/response"; }
 String topicCommand() { return "lockersystem/cabinet/" + String(CABINET_CODE) + "/command"; }
 
 String jsonValue(String payload, String key) {
@@ -131,11 +127,7 @@ void prepareQr(String payload) {
   qrcode_initText(&qrcode, qrcodeBytes, 1, ECC_LOW, payload.c_str());
 }
 
-void drawOtpScreen() {
-  unsigned long elapsed = millis() - codeStartedAt;
-  int progressWidth = elapsed >= OTP_INTERVAL ? 0 : map(OTP_INTERVAL - elapsed, 0, OTP_INTERVAL, 0, 128);
-  progressWidth = constrain(progressWidth, 0, 128);
-
+void drawOtpScreen(int progressWidth) {
   unsigned long now = millis();
   bool otpChanged = currentCode != lastRenderedOtpCode || currentQrPayload != lastRenderedQrPayload;
   bool progressChanged = progressWidth != lastRenderedProgressWidth;
@@ -196,28 +188,87 @@ void drawOtpScreen() {
 }
 
 void publishHello() {
-  String payload = "{\"cabinetCode\":\"" + String(CABINET_CODE) + "\",\"compartmentCount\":" + String(COMPARTMENT_COUNT) + ",\"identity\":\"" + cabinetIdentity + "\",\"firmware\":\"esp32-mqtt-cabinet-1\"}";
+  String payload = "{\"cabinetCode\":\"" + String(CABINET_CODE) + "\",\"compartmentCount\":" + String(COMPARTMENT_COUNT) + ",\"identity\":\"" + cabinetIdentity + "\",\"firmware\":\"esp32-mqtt-cabinet-totp\"}";
   mqtt.publish(topicHello().c_str(), payload.c_str(), false);
   lastHello = millis();
 }
 
-void requestOtp() {
-  unsigned long now = millis();
-  if (now - lastOtpRequest < 2000 && lastOtpRequest != 0) {
-    Serial.println("[OTP] Ignored duplicate OTP request (debounced)");
-    return;
+// ── NVS Helper functions ──────────────────────────────────────
+void loadSecret() {
+  preferences.begin("locker", true);
+  totpSecret = preferences.getString("totp_secret", "");
+  preferences.end();
+  Serial.print("[NVS] Loaded secret length: ");
+  Serial.println(totpSecret.length());
+}
+
+void saveSecret(const String& secret) {
+  preferences.begin("locker", false);
+  preferences.putString("totp_secret", secret);
+  preferences.end();
+  totpSecret = secret;
+  Serial.println("[NVS] Saved new TOTP secret");
+}
+
+// ── Cryptographic TOTP Helpers ────────────────────────────────
+bool decodeBase64(const String& input, uint8_t* out, size_t maxLen, size_t& outLen) {
+  int ret = mbedtls_base64_decode(out, maxLen, &outLen, (const unsigned char*)input.c_str(), input.length());
+  return ret == 0;
+}
+
+bool hmac_sha1(const uint8_t* key, size_t keyLen, const uint8_t* msg, size_t msgLen, uint8_t* output) {
+  mbedtls_md_context_t ctx;
+  mbedtls_md_init(&ctx);
+  const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
+  if (!info) return false;
+  
+  if (mbedtls_md_setup(&ctx, info, 1) != 0) return false;
+  if (mbedtls_md_hmac_starts(&ctx, key, keyLen) != 0) return false;
+  if (mbedtls_md_hmac_update(&ctx, msg, msgLen) != 0) return false;
+  if (mbedtls_md_hmac_finish(&ctx, output) != 0) return false;
+  
+  mbedtls_md_free(&ctx);
+  return true;
+}
+
+String getTOTPCode(const String& base64Secret, uint64_t timeStep) {
+  uint8_t key[64];
+  size_t keyLen = 0;
+  if (!decodeBase64(base64Secret, key, sizeof(key), keyLen)) {
+    Serial.println("[TOTP] Base64 decode failed");
+    return "ERROR ";
   }
   
-  // Clear the old OTP code to prevent the user from scanning a used code while waiting for the new one
-  currentCode = "------";
-  currentQrPayload = "";
+  uint8_t msg[8];
+  for (int i = 7; i >= 0; i--) {
+    msg[i] = timeStep & 0xFF;
+    timeStep >>= 8;
+  }
   
-  otpRequestSeq++;
-  lastOtpRequestId = String(CABINET_CODE) + "-" + String((uint32_t)ESP.getEfuseMac(), HEX) + "-" + String(otpRequestSeq);
-  otpRequestPending = true;
-  String payload = "{\"cabinetCode\":\"" + String(CABINET_CODE) + "\",\"compartmentCount\":" + String(COMPARTMENT_COUNT) + ",\"identity\":\"" + cabinetIdentity + "\",\"requestId\":\"" + lastOtpRequestId + "\"}";
-  mqtt.publish(topicOtpRequest().c_str(), payload.c_str(), false);
-  lastOtpRequest = now;
+  uint8_t hash[20];
+  if (!hmac_sha1(key, keyLen, msg, 8, hash)) {
+    Serial.println("[TOTP] HMAC calculation failed");
+    return "ERROR ";
+  }
+  
+  uint8_t offset = hash[19] & 0x0F;
+  uint32_t binary = ((hash[offset] & 0x7F) << 24) |
+                    ((hash[offset + 1] & 0xFF) << 16) |
+                    ((hash[offset + 2] & 0xFF) << 8) |
+                    (hash[offset + 3] & 0xFF);
+  
+  uint32_t otp = binary % 1000000;
+  char codeStr[7];
+  sprintf(codeStr, "%06d", otp);
+  return String(codeStr);
+}
+
+bool isTimeSynced() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return false;
+  }
+  return timeinfo.tm_year > 120; // Year is since 1900, so > 120 is > 2020
 }
 
 void onMqttMessage(char* topic, byte* payload, unsigned int length) {
@@ -228,10 +279,16 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
   if (topicStr == topicRegistration()) {
     String newStatus = jsonValue(message, "status");
     statusMessage = jsonValue(message, "message");
+    
     if (newStatus == "APPROVED") {
+      String secretKey = jsonValue(message, "secretKey");
+      if (secretKey.length() > 0 && secretKey != "null") {
+        saveSecret(secretKey);
+      }
+      
       if (cabinetStatus != "APPROVED") {
         cabinetStatus = "APPROVED";
-        // 1. Parse and apply initial states silently
+        // Apply initial locker states
         String states = jsonValue(message, "states");
         if (states.length() == COMPARTMENT_COUNT) {
           for (int i = 0; i < COMPARTMENT_COUNT; i++) {
@@ -241,55 +298,12 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
             Serial.printf("[Init State] Set compartment %d to %s (Pin %d)\n", i + 1, (val == LOW) ? "OPEN" : "LOCK", pin);
           }
         }
-        // 2. Request OTP now that initial opening/closing is fully completed
-        requestOtp();
       }
     } else {
       cabinetStatus = newStatus;
       drawStatus(cabinetStatus, statusMessage);
     }
     return;
-  }
-
-  if (topicStr == topicOtpResponse()) {
-    String status = jsonValue(message, "status");
-    if (status != "APPROVED") {
-      cabinetStatus = status;
-      statusMessage = jsonValue(message, "message");
-      showTemporaryStatus(cabinetStatus, statusMessage);
-      return;
-    }
-
-    String responseRequestId = jsonValue(message, "requestId");
-    if (!otpRequestPending || responseRequestId != lastOtpRequestId) {
-      Serial.println("[OTP] Ignored stale OTP response");
-      return;
-    }
-
-    String nextCode = jsonValue(message, "code");
-    String nextQrPayload = jsonValue(message, "qrPayload");
-    bool duplicateActiveOtp =
-      nextCode == currentCode &&
-      nextQrPayload == currentQrPayload &&
-      cabinetStatus == "APPROVED" &&
-      millis() - codeStartedAt < DUPLICATE_OTP_WINDOW;
-    if (duplicateActiveOtp) {
-      Serial.println("[OTP] Ignored duplicate OTP response");
-      return;
-    }
-
-    currentCode = nextCode;
-    currentQrPayload = nextQrPayload;
-    if (currentCode.length() == 6) {
-      otpRequestPending = false;
-      cabinetStatus = "APPROVED";
-      codeStartedAt = millis();
-      lastRenderedOtpCode = "";
-      lastRenderedQrPayload = "";
-      lastRenderedProgressWidth = -1;
-      prepareQr(currentQrPayload.length() ? currentQrPayload : currentCode);
-      drawOtpScreen();
-    }
   }
 
   if (topicStr == topicCommand()) {
@@ -308,13 +322,13 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
     if (compNo >= 1 && compNo <= COMPARTMENT_COUNT) {
       int pin = LOCK_PINS[compNo - 1];
       if (action == "unlock") {
-        digitalWrite(pin, LOW); // Mở khóa (LOW)
+        digitalWrite(pin, LOW); // Open lock
         Serial.printf("[Lock Control] Unlocked compartment %d (Pin %d)\n", compNo, pin);
         if (millis() > 5000) {
           showTemporaryStatus("OPENED", "Compartment " + compStr + " is opened");
         }
       } else if (action == "lock") {
-        digitalWrite(pin, HIGH); // Khóa (HIGH)
+        digitalWrite(pin, HIGH); // Lock pin
         Serial.printf("[Lock Control] Locked compartment %d (Pin %d)\n", compNo, pin);
         if (millis() > 5000) {
           showTemporaryStatus("CLOSED", "Compartment " + compStr + " is closed");
@@ -335,6 +349,10 @@ void connectWifi() {
     drawStatus("WIFI LOST", "Reconnecting to access point");
   }
   Serial.println("\nWiFi connected");
+  
+  // Sync time with NTP
+  configTime(7 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+  Serial.println("[NTP] Configured time sync");
 }
 
 void connectMqtt() {
@@ -347,7 +365,6 @@ void connectMqtt() {
   String clientId = "locker-" + String(CABINET_CODE) + "-" + String((uint32_t)ESP.getEfuseMac(), HEX);
   if (mqtt.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
     mqtt.subscribe(topicRegistration().c_str(), 1);
-    mqtt.subscribe(topicOtpResponse().c_str(), 1);
     mqtt.subscribe(topicCommand().c_str(), 1);
     publishHello();
   }
@@ -359,7 +376,7 @@ void setup() {
   // Initialize lock control pins
   for (int i = 0; i < COMPARTMENT_COUNT; i++) {
     pinMode(LOCK_PINS[i], OUTPUT);
-    digitalWrite(LOCK_PINS[i], HIGH); // Auto-lock all compartments initially (HIGH)
+    digitalWrite(LOCK_PINS[i], HIGH); // Lock initially
   }
 
   cabinetIdentity = String(CABINET_CODE) + ":" + String(COMPARTMENT_COUNT);
@@ -367,6 +384,9 @@ void setup() {
   display.init();
   display.flipScreenVertically();
   drawStatus("SMART LOCKER", cabinetIdentity);
+
+  // Load persistent NVS variables
+  loadSecret();
 
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setCallback(onMqttMessage);
@@ -387,17 +407,39 @@ void loop() {
     if (now - tempDisplayStartedAt >= 3000) {
       isTempDisplayActive = false;
       cabinetStatus = "APPROVED";
-      requestOtp();
     }
   } else {
     if (mqtt.connected() && now - lastHello >= HELLO_INTERVAL && cabinetStatus != "APPROVED") {
       publishHello();
     }
-    if (mqtt.connected() && cabinetStatus == "APPROVED" && now - lastOtpRequest >= OTP_INTERVAL) {
-      requestOtp();
-    }
-    if (cabinetStatus == "APPROVED" && currentCode.length() == 6) {
-      drawOtpScreen();
+    
+    if (cabinetStatus == "APPROVED") {
+      if (totpSecret.length() == 0) {
+        if (now - lastHello >= HELLO_INTERVAL) {
+          publishHello();
+        }
+        drawStatus("PENDING", "Waiting for secret key...");
+      } else if (!isTimeSynced()) {
+        drawStatus("NTP SYNC", "Syncing time...");
+      } else {
+        time_t rawTime = time(nullptr);
+        uint64_t currentStep = rawTime / 30;
+        
+        // Time remaining in current 30s step in ms
+        unsigned long timeRemainingMs = (30 - (rawTime % 30)) * 1000 - (millis() % 1000);
+        if (timeRemainingMs > 30000) timeRemainingMs = 30000;
+        
+        String newCode = getTOTPCode(totpSecret, currentStep);
+        if (newCode != currentCode) {
+          currentCode = newCode;
+          prepareQr(currentCode);
+        }
+        
+        int progressWidth = map(timeRemainingMs, 0, 30000, 0, 128);
+        progressWidth = constrain(progressWidth, 0, 128);
+        
+        drawOtpScreen(progressWidth);
+      }
     }
   }
   delay(100);

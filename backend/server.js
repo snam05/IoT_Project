@@ -1,7 +1,5 @@
 import 'dotenv/config';
-import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
-import { createReadStream } from 'node:fs';
+import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMqttWorker } from './mqtt-worker.js';
@@ -28,181 +26,86 @@ const rootDir = path.resolve(__dirname, '..');
 const publicDir = path.join(rootDir, 'dist', 'public');
 const port = parseInt(process.env.PORT || '3000', 10);
 
-const routes = [
-  ['POST', /^\/api\/auth\/login\/?$/, authLogin],
-  ['POST', /^\/api\/auth\/logout\/?$/, authLogout],
-  ['GET', /^\/api\/auth\/me\/?$/, authMe],
-  ['POST', /^\/api\/auth\/register\/?$/, authRegister],
-  ['GET|PUT', /^\/api\/profile\/?$/, profile],
-  ['GET', /^\/api\/lockers\/?$/, lockers],
-  ['GET', /^\/api\/stats\/?$/, stats],
-  ['GET', /^\/api\/lockers\/otp\/?$/, lockersOtp],
-  ['POST', /^\/api\/lockers\/unlock\/?$/, lockersUnlock],
-  ['GET|POST|PUT', /^\/api\/admin\/lockers\/?$/, adminLockers],
-  ['GET|POST', /^\/api\/admin\/users\/?$/, adminUsers],
-  ['GET|PUT|DELETE', /^\/api\/admin\/users\/([^/]+)\/?$/, adminUserById, ['id']],
-  ['GET|PUT|DELETE', /^\/api\/admin\/cabinets\/?$/, adminCabinets],
-  ['POST', /^\/api\/mqtt\/cabinet\/?$/, mqttCabinet],
-  ['GET', /^\/api\/admin\/logs\/lockers\/?$/, adminLogsLockers],
-  ['GET', /^\/api\/admin\/logs\/system\/?$/, adminLogsSystem],
-];
+const app = express();
 
-const mimeTypes = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-};
+// Enable JSON body parsing
+app.use(express.json());
 
-function setSecurityHeaders(res) {
+// Set security headers & CORS
+app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', 'camera=(self), microphone=()');
-}
-
-function parseBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on('data', (chunk) => chunks.push(chunk));
-    req.on('end', () => {
-      if (!chunks.length) return resolve(undefined);
-      const raw = Buffer.concat(chunks).toString('utf8');
-      const contentType = req.headers['content-type'] || '';
-      if (contentType.includes('application/json')) {
-        try {
-          return resolve(raw ? JSON.parse(raw) : undefined);
-        } catch (err) {
-          return reject(err);
-        }
-      }
-      resolve(raw);
-    });
-    req.on('error', reject);
-  });
-}
-
-function buildReq(req, url, body, params = {}) {
-  return Object.assign(req, {
-    query: { ...Object.fromEntries(url.searchParams.entries()), ...params },
-    body,
-  });
-}
-
-function buildRes(nodeRes) {
-  return {
-    statusCode: 200,
-    setHeader(name, value) {
-      nodeRes.setHeader(name, value);
-      return this;
-    },
-    status(code) {
-      this.statusCode = code;
-      nodeRes.statusCode = code;
-      return this;
-    },
-    json(payload) {
-      if (!nodeRes.hasHeader('Content-Type')) nodeRes.setHeader('Content-Type', 'application/json; charset=utf-8');
-      nodeRes.statusCode = this.statusCode;
-      nodeRes.end(JSON.stringify(payload));
-      return this;
-    },
-    end(payload = '') {
-      nodeRes.statusCode = this.statusCode;
-      nodeRes.end(payload);
-      return this;
-    },
-  };
-}
-
-function matchRoute(method, pathname) {
-  for (const [methods, pattern, handler, keys = []] of routes) {
-    if (!methods.split('|').includes(method) && method !== 'OPTIONS') continue;
-    const match = pathname.match(pattern);
-    if (!match) continue;
-    const params = Object.fromEntries(keys.map((key, index) => [key, match[index + 1]]));
-    return { handler, params };
-  }
-  return null;
-}
-
-async function handleApi(req, res, url) {
-  const matched = matchRoute(req.method, url.pathname);
-  if (!matched) {
-    res.statusCode = 404;
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.end(JSON.stringify({ error: 'API route not found' }));
-    return;
-  }
-
-  let body;
-  try {
-    body = await parseBody(req);
-  } catch {
-    res.statusCode = 400;
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.end(JSON.stringify({ error: 'Invalid JSON body' }));
-    return;
-  }
-
-  await matched.handler(buildReq(req, url, body, matched.params), buildRes(res));
-}
-
-async function sendFile(res, filePath) {
-  const info = await stat(filePath);
-  if (!info.isFile()) throw new Error('Not a file');
-  res.statusCode = 200;
-  res.setHeader('Content-Type', mimeTypes[path.extname(filePath)] || 'application/octet-stream');
-  res.setHeader('Content-Length', info.size);
-  createReadStream(filePath).pipe(res);
-}
-
-async function handleStatic(req, res, url) {
-  const decoded = decodeURIComponent(url.pathname);
-  const safePath = path.normalize(decoded).replace(/^\.\.(\/|\\|$)/, '');
-  const requested = path.join(publicDir, safePath === '/' ? 'index.html' : safePath);
-
-  try {
-    await sendFile(res, requested);
-  } catch {
-    try {
-      const index = path.join(publicDir, 'index.html');
-      const html = await readFile(index);
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.end(html);
-    } catch {
-      res.statusCode = 404;
-      res.end('Build output not found. Run npm run build first.');
-    }
-  }
-}
-
-export const server = createServer(async (req, res) => {
-  setSecurityHeaders(res);
-  const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-  try {
-    if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
-    else await handleStatic(req, res, url);
-  } catch (err) {
-    console.error('[server]', err);
-    if (!res.headersSent) {
-      res.statusCode = 500;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'Internal server error' }));
-    } else {
-      res.end();
-    }
-  }
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
 });
 
+// Map req.query from route params for controllers compatibility
+app.use((req, res, next) => {
+  if (req.params) {
+    Object.assign(req.query, req.params);
+  }
+  next();
+});
+
+// API Routes
+app.post('/api/auth/login', authLogin);
+app.post('/api/auth/logout', authLogout);
+app.get('/api/auth/me', authMe);
+app.post('/api/auth/register', authRegister);
+
+app.route('/api/profile')
+  .get(profile)
+  .put(profile);
+
+app.get('/api/lockers', lockers);
+app.get('/api/stats', stats);
+app.get('/api/lockers/otp', lockersOtp);
+app.post('/api/lockers/unlock', lockersUnlock);
+
+app.route('/api/admin/lockers')
+  .get(adminLockers)
+  .post(adminLockers)
+  .put(adminLockers);
+
+app.route('/api/admin/users')
+  .get(adminUsers)
+  .post(adminUsers);
+
+// Middleware to assign :id to req.query.id so [id].js controller works seamlessly
+app.all('/api/admin/users/:id', (req, res, next) => {
+  req.query.id = req.params.id;
+  adminUserById(req, res, next);
+});
+
+app.route('/api/admin/cabinets')
+  .get(adminCabinets)
+  .put(adminCabinets)
+  .delete(adminCabinets);
+
+app.post('/api/mqtt/cabinet', mqttCabinet);
+app.get('/api/admin/logs/lockers', adminLogsLockers);
+app.get('/api/admin/logs/system', adminLogsSystem);
+
+// Serve static files
+app.use(express.static(publicDir));
+
+// Fallback for Single Page Application routing (index.html)
+app.get('/*splat', (req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'), (err) => {
+    if (err) {
+      res.status(404).send('Build output not found. Run npm run build first.');
+    }
+  });
+});
+
+export const server = app;
+
 export function startServer() {
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`[server] listening on 0.0.0.0:${port}`);
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`[server] Express listening on 0.0.0.0:${port}`);
   });
 
   if (process.env.MQTT_WORKER_ENABLED !== 'false') {

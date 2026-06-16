@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma.js';
 import { requireAuth } from '../../lib/auth.js';
 import { publishCommand } from '../../lib/mqtt.js';
+import { verifyTotp } from '../../lib/otp.js';
 
 /**
  * POST /api/lockers/unlock
@@ -72,29 +73,6 @@ export default async function handler(req, res) {
 
     const resolvedCode = code || codeFromQr;
 
-    // If OTP method and lockerId was not provided, look up the OTP code directly to resolve cabinetCode
-    if (method === 'otp' && !lockerId && resolvedCode) {
-      const otp = await prisma.otp.findFirst({
-        where: {
-          code: resolvedCode,
-          expiresAt: { gt: new Date() },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (!otp) return res.status(401).json({ error: 'Invalid or expired OTP code' });
-
-      const cabIdentity = otp.lockerId; // e.g. "TEST_CABINET:8"
-      const [parsedCabCode] = cabIdentity.split(':');
-      cabinetCode = parsedCabCode.toUpperCase();
-    }
-
-    if (cabinetCode) {
-      cabinet = await prisma.cabinet.findUnique({
-        where: { cabinetCode },
-        include: { lockers: true }
-      });
-    }
-
     // First, check if the current user already has an active (IN_USE) locker in the entire system
     const activeLocker = await prisma.locker.findFirst({
       where: {
@@ -106,19 +84,46 @@ export default async function handler(req, res) {
 
     if (activeLocker) {
       selectedLocker = activeLocker;
+      if (resolvedCode) {
+        const cab = await prisma.cabinet.findUnique({
+          where: { id: selectedLocker.cabinetId }
+        });
+        if (cab && cab.totpSecret && !verifyTotp(resolvedCode, cab.totpSecret)) {
+          return res.status(401).json({ error: 'Invalid or expired OTP code for this locker' });
+        }
+      }
     } else {
+      // User is claiming a new locker.
+      if (method === 'otp' && !lockerId && resolvedCode) {
+        const cabinets = await prisma.cabinet.findMany({
+          where: { status: 'APPROVED' },
+          include: { lockers: true }
+        });
+        let matchingCabinet = null;
+        for (const cab of cabinets) {
+          if (cab.totpSecret && verifyTotp(resolvedCode, cab.totpSecret)) {
+            matchingCabinet = cab;
+            break;
+          }
+        }
+        if (!matchingCabinet) {
+          return res.status(401).json({ error: 'Invalid or expired OTP code' });
+        }
+        cabinet = matchingCabinet;
+        cabinetCode = cabinet.cabinetCode;
+      } else if (cabinetCode) {
+        cabinet = await prisma.cabinet.findUnique({
+          where: { cabinetCode },
+          include: { lockers: true }
+        });
+      }
+
       if (cabinet) {
-        // If we had lockerId provided, verify the OTP now.
+        // If they provided lockerId and code, verify against this cabinet
         if (lockerId && resolvedCode) {
-          const otp = await prisma.otp.findFirst({
-            where: {
-              lockerId: cabinet.identity,
-              code: resolvedCode,
-              expiresAt: { gt: new Date() },
-            },
-            orderBy: { createdAt: 'desc' },
-          });
-          if (!otp) return res.status(401).json({ error: 'Invalid or expired OTP code' });
+          if (!cabinet.totpSecret || !verifyTotp(resolvedCode, cabinet.totpSecret)) {
+            return res.status(401).json({ error: 'Invalid or expired OTP code' });
+          }
         }
 
         if (compartmentNo != null) {
@@ -136,6 +141,10 @@ export default async function handler(req, res) {
           selectedLocker = availableLockers[randomIndex];
         }
       } else {
+        // Fallback for standalone lockers (e.g. seeded database lockers without cabinetId)
+        if (!lockerId) {
+          return res.status(400).json({ error: 'Locker ID is required' });
+        }
         selectedLocker = await prisma.locker.findUnique({
           where: { lockerId: lockerId.toUpperCase() },
           include: { cabinet: true }

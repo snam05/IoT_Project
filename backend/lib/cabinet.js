@@ -83,11 +83,18 @@ export async function recordCabinetHello(input) {
   }
 
   if (existing.status === 'APPROVED') {
+    let cabinetWithSecret = existing;
+    if (!existing.totpSecret) {
+      cabinetWithSecret = await prisma.cabinet.update({
+        where: { id: existing.id },
+        data: { totpSecret: generateTotpSecret() },
+      });
+    }
     const lockers = await prisma.locker.findMany({
       where: { cabinetId: existing.id },
       select: { compartmentNo: true, status: true },
     });
-    return { status: 'APPROVED', cabinet: existing, receivedIdentity, lockers, message: 'Cabinet approved.' };
+    return { status: 'APPROVED', cabinet: cabinetWithSecret, receivedIdentity, lockers, message: 'Cabinet approved.' };
   }
 
   return {
@@ -106,7 +113,12 @@ export async function approveCabinet(cabinetId) {
   return prisma.$transaction(async (tx) => {
     const updated = await tx.cabinet.update({
       where: { id },
-      data: { status: 'APPROVED', approvedAt: new Date(), rejectedAt: null },
+      data: {
+        status: 'APPROVED',
+        approvedAt: new Date(),
+        rejectedAt: null,
+        totpSecret: cabinet.totpSecret || generateTotpSecret(),
+      },
     });
 
     for (let compartmentNo = 1; compartmentNo <= cabinet.compartmentCount; compartmentNo++) {

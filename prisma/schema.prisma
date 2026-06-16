@@ -83,6 +83,7 @@ model Cabinet {
   identity         String        @unique @db.VarChar(80)
   compartmentCount Int
   status           CabinetStatus @default(PENDING)
+  totpSecret       String?       @db.VarChar(100) // Added for TOTP generation
   lastSeenAt       DateTime?
   approvedAt       DateTime?
   rejectedAt       DateTime?

@@ -59,6 +59,7 @@ export default async function handler(req, res) {
           cabinetCode: cabinet.cabinetCode,
           identity: cabinet.identity,
           compartmentCount: cabinet.compartmentCount,
+          secretKey: cabinet.totpSecret || null,
         }).catch((err) => console.warn('[admin/cabinets mqtt]', err.message));
 
         return res.status(200).json({ success: true, cabinet });

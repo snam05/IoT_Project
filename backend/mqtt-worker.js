@@ -51,31 +51,15 @@ export function startMqttWorker() {
       receivedIdentity: result.receivedIdentity,
       compartmentCount: result.cabinet?.compartmentCount || Number(message.compartmentCount),
       states: statesStr,
-    });
-  }
-
-  async function handleOtpRequest(message) {
-    const result = await createCabinetOtp(message);
-    const cabinetCode = result.cabinet?.cabinetCode || String(message.cabinetCode || '').trim().toUpperCase();
-    if (!cabinetCode) return;
-    publish(TOPICS.cabinetOtpResponse(cabinetCode), {
-      status: result.status,
-      message: result.message,
-      cabinetCode,
-      identity: result.cabinet?.identity || result.receivedIdentity,
-      requestId: message.requestId,
-      code: result.code,
-      qrPayload: result.qrPayload,
-      expiresIn: result.expiresIn,
-      expiresAt: result.expiresAt,
+      secretKey: result.cabinet?.totpSecret || null,
     });
   }
 
   client.on('connect', () => {
     console.log('[mqtt-worker] connected');
-    client.subscribe([TOPICS.cabinetHello(), TOPICS.cabinetOtpRequest()], { qos: 1 }, (err) => {
+    client.subscribe([TOPICS.cabinetHello()], { qos: 1 }, (err) => {
       if (err) console.error('[mqtt-worker] subscribe failed', err);
-      else console.log('[mqtt-worker] subscribed to cabinet hello and OTP requests');
+      else console.log('[mqtt-worker] subscribed to cabinet hello');
     });
   });
 
@@ -85,7 +69,6 @@ export function startMqttWorker() {
 
     try {
       if (topic.endsWith('/hello')) await handleHello(message);
-      if (topic.endsWith('/otp/request')) await handleOtpRequest(message);
     } catch (err) {
       console.error('[mqtt-worker] handler failed', topic, err);
     }
