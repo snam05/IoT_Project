@@ -35,7 +35,10 @@ export default async function handler(req, res) {
           skip,
           take: parseInt(limit),
           orderBy: [{ zone: 'asc' }, { row: 'asc' }, { col: 'asc' }],
-          include: { user: { select: { id: true, name: true, username: true } } },
+          include: { 
+            user: { select: { id: true, name: true, username: true } },
+            cabinet: { select: { lastSeenAt: true, status: true } }
+          },
         }),
         prisma.locker.count({ where }),
       ]);
@@ -149,6 +152,20 @@ export default async function handler(req, res) {
     }
 
     try {
+      const existingLocker = await prisma.locker.findUnique({
+        where: { lockerId },
+        include: { cabinet: true }
+      });
+      if (!existingLocker) return res.status(404).json({ error: 'Locker not found' });
+
+      if (existingLocker.cabinet) {
+        const lastSeen = existingLocker.cabinet.lastSeenAt;
+        const isOffline = !lastSeen || (new Date() - new Date(lastSeen) > 25000);
+        if (isOffline) {
+          return res.status(400).json({ error: 'Cabinet is offline. State cannot be modified.' });
+        }
+      }
+
       const dataUpdate = {
         ...(status ? { status } : {}),
         ...((status === 'AVAILABLE' || status === 'MAINTENANCE') ? { userId: null, lockedAt: null } : {}),

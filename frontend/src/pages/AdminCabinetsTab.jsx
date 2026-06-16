@@ -7,7 +7,10 @@ const STATUS_CLASS = {
   REJECTED: 'bg-red-100 text-red-700',
 };
 
-function CabinetBadge({ status }) {
+function CabinetBadge({ status, isOffline }) {
+  if (isOffline) {
+    return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-600 border border-gray-300">OFFLINE</span>;
+  }
   return <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_CLASS[status] || 'bg-surface-container-high text-on-surface-variant'}`}>{status}</span>;
 }
 
@@ -127,52 +130,55 @@ export default function AdminCabinetsTab() {
                 <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant">Loading...</td></tr>
               ) : data.cabinets.length === 0 ? (
                 <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant">No cabinets</td></tr>
-              ) : data.cabinets.map((cabinet) => (
-                <tr key={cabinet.id} className="hover:bg-surface-container-low transition-colors">
-                  <td className="px-4 py-3 font-mono font-semibold text-primary">{cabinet.identity}</td>
-                  <td className="px-4 py-3 font-mono text-on-surface-variant">{cabinet.cabinetCode}</td>
-                  <td className="px-4 py-3 text-on-surface-variant">{cabinet.compartmentCount}</td>
-                  <td className="px-4 py-3"><CabinetBadge status={cabinet.status} /></td>
-                  <td className="px-4 py-3 text-on-surface-variant text-xs">{cabinet.lastSeenAt ? new Date(cabinet.lastSeenAt).toLocaleString() : '-'}</td>
-                  <td className="px-4 py-3 text-on-surface-variant">{cabinet._count?.lockers || 0}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      {cabinet.status === 'APPROVED' && (
-                        <>
-                          <button onClick={() => update(cabinet.id, 'unlock_all')} disabled={busyId === cabinet.id}
-                            className="px-3 py-1 rounded-lg bg-teal-100 text-teal-700 text-xs font-semibold hover:bg-teal-200 active:scale-95 transition-all disabled:opacity-50">
-                            Unlock All
+              ) : data.cabinets.map((cabinet) => {
+                const isOffline = cabinet.status === 'APPROVED' && (!cabinet.lastSeenAt || (new Date() - new Date(cabinet.lastSeenAt) > 25000));
+                return (
+                  <tr key={cabinet.id} className={`hover:bg-surface-container-low transition-colors ${isOffline ? 'opacity-40 bg-surface-container-lowest select-none' : ''}`}>
+                    <td className="px-4 py-3 font-mono font-semibold text-primary">{cabinet.identity}</td>
+                    <td className="px-4 py-3 font-mono text-on-surface-variant">{cabinet.cabinetCode}</td>
+                    <td className="px-4 py-3 text-on-surface-variant">{cabinet.compartmentCount}</td>
+                    <td className="px-4 py-3"><CabinetBadge status={cabinet.status} isOffline={isOffline} /></td>
+                    <td className="px-4 py-3 text-on-surface-variant text-xs">{cabinet.lastSeenAt ? new Date(cabinet.lastSeenAt).toLocaleString() : '-'}</td>
+                    <td className="px-4 py-3 text-on-surface-variant">{cabinet._count?.lockers || 0}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        {cabinet.status === 'APPROVED' && (
+                          <>
+                            <button onClick={() => update(cabinet.id, 'unlock_all')} disabled={busyId === cabinet.id || isOffline}
+                              className="px-3 py-1 rounded-lg bg-teal-100 text-teal-700 text-xs font-semibold hover:bg-teal-200 active:scale-95 transition-all disabled:opacity-50">
+                              Unlock All
+                            </button>
+                            <button onClick={() => update(cabinet.id, 'lock_all')} disabled={busyId === cabinet.id || isOffline}
+                              className="px-3 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50">
+                              Lock All
+                            </button>
+                            <button onClick={() => setEditingZoneCabinet(cabinet)} disabled={busyId === cabinet.id || isOffline}
+                              className="px-3 py-1 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-semibold hover:bg-indigo-200 active:scale-95 transition-all disabled:opacity-50">
+                              Edit Zone
+                            </button>
+                          </>
+                        )}
+                        {cabinet.status !== 'APPROVED' && (
+                          <button onClick={() => update(cabinet.id, 'approve')} disabled={busyId === cabinet.id}
+                            className="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50">
+                            Approve
                           </button>
-                          <button onClick={() => update(cabinet.id, 'lock_all')} disabled={busyId === cabinet.id}
-                            className="px-3 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50">
-                            Lock All
+                        )}
+                        {cabinet.status === 'PENDING' && (
+                          <button onClick={() => update(cabinet.id, 'reject')} disabled={busyId === cabinet.id}
+                            className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50">
+                            Reject
                           </button>
-                          <button onClick={() => setEditingZoneCabinet(cabinet)} disabled={busyId === cabinet.id}
-                            className="px-3 py-1 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-semibold hover:bg-indigo-200 active:scale-95 transition-all disabled:opacity-50">
-                            Edit Zone
-                          </button>
-                        </>
-                      )}
-                      {cabinet.status !== 'APPROVED' && (
-                        <button onClick={() => update(cabinet.id, 'approve')} disabled={busyId === cabinet.id}
-                          className="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50">
-                          Approve
+                        )}
+                        <button onClick={() => setDeletingCabinet(cabinet)} disabled={busyId === cabinet.id}
+                          className="px-3 py-1 rounded-lg border border-outline-variant text-on-surface-variant text-xs font-semibold hover:bg-surface-container-low active:scale-95 transition-all disabled:opacity-50">
+                          Delete
                         </button>
-                      )}
-                      {cabinet.status === 'PENDING' && (
-                        <button onClick={() => update(cabinet.id, 'reject')} disabled={busyId === cabinet.id}
-                          className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50">
-                          Reject
-                        </button>
-                      )}
-                      <button onClick={() => setDeletingCabinet(cabinet)} disabled={busyId === cabinet.id}
-                        className="px-3 py-1 rounded-lg border border-outline-variant text-on-surface-variant text-xs font-semibold hover:bg-surface-container-low active:scale-95 transition-all disabled:opacity-50">
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { getMqttConfig } from './lib/mqtt-config.js';
 import { createCabinetOtp, recordCabinetHello } from './lib/cabinet.js';
 import { TOPICS } from './lib/mqtt.js';
+import prisma from './lib/prisma.js';
 
 function parseJson(payload) {
   try {
@@ -77,6 +78,25 @@ export function startMqttWorker() {
   client.on('error', (err) => console.error('[mqtt-worker] mqtt error', err.message));
   client.on('close', () => console.warn('[mqtt-worker] connection closed'));
   client.on('offline', () => console.warn('[mqtt-worker] offline'));
+
+  // Periodic ping task to approved cabinets to keep lastSeenAt fresh
+  setInterval(async () => {
+    try {
+      const cabinets = await prisma.cabinet.findMany({
+        where: { status: 'APPROVED' },
+        select: { cabinetCode: true },
+      });
+      for (const cab of cabinets) {
+        publish(TOPICS.cabinetCommand(cab.cabinetCode), {
+          action: 'ping',
+          msgId: `ping-${Date.now()}`
+        });
+      }
+    } catch (err) {
+      console.error('[mqtt-worker ping task error]', err.message);
+    }
+  }, 5000);
+
   return client;
 }
 

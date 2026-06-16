@@ -316,6 +316,13 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
   }
 
   if (topicStr == topicCommand()) {
+    String action = jsonValue(message, "action");
+    if (action == "ping") {
+      Serial.println("[Ping] Received ping from server. Replying with hello...");
+      publishHello();
+      return;
+    }
+
     String msgId = jsonValue(message, "msgId");
     if (msgId.length() > 0 && msgId == lastProcessedMsgId) {
       Serial.println("[Command] Ignored duplicate command (QoS 2)");
