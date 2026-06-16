@@ -131,7 +131,7 @@ export default function AdminCabinetsTab() {
               ) : data.cabinets.length === 0 ? (
                 <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant">No cabinets</td></tr>
               ) : data.cabinets.map((cabinet) => {
-                const isOffline = cabinet.status === 'APPROVED' && (!cabinet.lastSeenAt || (new Date() - new Date(cabinet.lastSeenAt) > 25000));
+                const isOffline = cabinet.status === 'APPROVED' && (!cabinet.lastSeenAt || (new Date() - new Date(cabinet.lastSeenAt) > 10000));
                 return (
                   <tr key={cabinet.id} className={`hover:bg-surface-container-low transition-colors ${isOffline ? 'opacity-40 bg-surface-container-lowest select-none' : ''}`}>
                     <td className="px-4 py-3 font-mono font-semibold text-primary">{cabinet.identity}</td>

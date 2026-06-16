@@ -86,8 +86,12 @@ app.route('/api/admin/cabinets')
   .delete(adminCabinets);
 
 app.post('/api/mqtt/cabinet', mqttCabinet);
-app.get('/api/admin/logs/lockers', adminLogsLockers);
-app.get('/api/admin/logs/system', adminLogsSystem);
+app.route('/api/admin/logs/lockers')
+  .get(adminLogsLockers)
+  .delete(adminLogsLockers);
+app.route('/api/admin/logs/system')
+  .get(adminLogsSystem)
+  .delete(adminLogsSystem);
 
 // Serve static files
 app.use(express.static(publicDir));

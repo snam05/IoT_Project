@@ -74,7 +74,7 @@ export default async function handler(req, res) {
         if (!cabinet) return res.status(404).json({ error: 'Cabinet not found' });
 
         const lastSeen = cabinet.lastSeenAt;
-        const isOffline = !lastSeen || (new Date() - new Date(lastSeen) > 25000);
+        const isOffline = !lastSeen || (new Date() - new Date(lastSeen) > 10000);
         if (isOffline) {
           return res.status(400).json({ error: 'Cabinet is offline. State cannot be modified.' });
         }

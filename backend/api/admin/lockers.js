@@ -160,7 +160,7 @@ export default async function handler(req, res) {
 
       if (existingLocker.cabinet) {
         const lastSeen = existingLocker.cabinet.lastSeenAt;
-        const isOffline = !lastSeen || (new Date() - new Date(lastSeen) > 25000);
+        const isOffline = !lastSeen || (new Date() - new Date(lastSeen) > 10000);
         if (isOffline) {
           return res.status(400).json({ error: 'Cabinet is offline. State cannot be modified.' });
         }

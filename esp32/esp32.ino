@@ -332,7 +332,6 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
       lastProcessedMsgId = msgId;
     }
 
-    String action = jsonValue(message, "action");
     String compStr = jsonValue(message, "compartmentNo");
     int compNo = compStr.toInt();
     if (compNo >= 1 && compNo <= COMPARTMENT_COUNT) {
