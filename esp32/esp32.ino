@@ -280,6 +280,15 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
     String newStatus = jsonValue(message, "status");
     statusMessage = jsonValue(message, "message");
     
+    if (newStatus == "DELETED" || newStatus == "REJECTED") {
+      saveSecret("");
+      cabinetStatus = newStatus;
+      while (true) {
+        drawStatus(newStatus, "Please restart system!");
+        delay(5000);
+      }
+    }
+
     if (newStatus == "APPROVED") {
       String secretKey = jsonValue(message, "secretKey");
       if (secretKey.length() > 0 && secretKey != "null") {
@@ -397,8 +406,24 @@ void setup() {
 }
 
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) connectWifi();
-  if (!mqtt.connected()) connectMqtt();
+  if (WiFi.status() != WL_CONNECTED) {
+    connectWifi();
+    if (WiFi.status() != WL_CONNECTED) {
+      drawStatus("WIFI ERROR", "Connection lost!");
+      delay(500);
+      return;
+    }
+  }
+
+  if (!mqtt.connected()) {
+    connectMqtt();
+    if (!mqtt.connected()) {
+      drawStatus("MQTT ERROR", "Broker disconnected!");
+      delay(500);
+      return;
+    }
+  }
+
   mqtt.loop();
 
   unsigned long now = millis();

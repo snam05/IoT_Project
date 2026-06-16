@@ -59,6 +59,7 @@ export default async function handler(req, res) {
           cabinetCode: cabinet.cabinetCode,
           identity: cabinet.identity,
           compartmentCount: cabinet.compartmentCount,
+          states: action === 'approve' ? "0".repeat(cabinet.compartmentCount) : undefined,
           secretKey: cabinet.totpSecret || null,
         }).catch((err) => console.warn('[admin/cabinets mqtt]', err.message));
 
@@ -120,6 +121,13 @@ export default async function handler(req, res) {
       await prisma.systemLog.create({
         data: { userId: payload.userId, action: 'delete_cabinet', details: `${cabinet.identity}`, ipAddress: ip },
       });
+
+      publishCabinetRegistration(cabinet.cabinetCode, {
+        status: 'DELETED',
+        message: 'Cabinet deleted from server',
+        cabinetCode: cabinet.cabinetCode,
+      }).catch((err) => console.warn('[admin/cabinets delete mqtt]', err.message));
+
       return res.status(200).json({ success: true, cabinet });
     } catch (err) {
       if (err.code === 'P2025') return res.status(404).json({ error: 'Cabinet not found' });
