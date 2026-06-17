@@ -66,7 +66,7 @@ model Locker {
   cabinetId     Int?
   compartmentNo Int?
 
-  user          User?        @relation("LockerUser", fields: [userId], references: [id])
+  user          User?        @relation("LockerUser", fields: [userId], references: [id], onDelete: SetNull)
   cabinet       Cabinet?     @relation(fields: [cabinetId], references: [id])
   logs          LockerLog[]
 
@@ -106,7 +106,7 @@ model LockerLog {
   timestamp DateTime @default(now())
 
   locker    Locker   @relation(fields: [lockerId], references: [lockerId])
-  user      User?    @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([lockerId])
   @@index([userId])
@@ -121,7 +121,7 @@ model SystemLog {
   ipAddress String?  @db.VarChar(50)
   timestamp DateTime @default(now())
 
-  user      User?    @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([timestamp])
@@ -137,7 +137,7 @@ model Otp {
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user      User?    @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([code, lockerId])
   @@index([expiresAt])

@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   const payload = requireAdmin(req, res);
   if (!payload) return;
 
-  const id = parseInt(req.query.id);
+  const id = parseInt(req.query.id || req.params?.id);
   if (!id) return res.status(400).json({ error: 'Invalid user id' });
 
   // ── GET ──────────────────────────────────────────────────
@@ -76,7 +76,8 @@ export default async function handler(req, res) {
         },
       });
       return res.status(200).json({ success: true, user });
-    } catch {
+    } catch (err) {
+      console.error('[PUT /api/admin/users/:id]', err);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -99,6 +100,7 @@ export default async function handler(req, res) {
       });
       return res.status(200).json({ success: true });
     } catch (err) {
+      console.error('[DELETE /api/admin/users/:id]', err);
       if (err.code === 'P2025') return res.status(404).json({ error: 'User not found' });
       return res.status(500).json({ error: 'Internal server error' });
     }
