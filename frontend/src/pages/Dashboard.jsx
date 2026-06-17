@@ -216,9 +216,9 @@ function LockersTab() {
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
               {loading ? (
-                <tr><td colSpan={7} className="text-center py-8"><Spinner/></td></tr>
+                <tr><td colSpan={7} className="py-8"><div className="flex justify-center w-full"><Spinner/></div></td></tr>
               ) : (!data.lockers || data.lockers.length === 0) ? (
-                <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant font-medium">No lockers found</td></tr>
+                <tr><td colSpan={7} className="py-8"><div className="flex justify-center w-full text-on-surface-variant font-medium">No lockers found</div></td></tr>
               ) : data.lockers.map(l => {
                 const isOffline = l.cabinet && (!l.cabinet.lastSeenAt || (new Date() - new Date(l.cabinet.lastSeenAt) > 10000));
                 return (
@@ -561,9 +561,9 @@ function UsersTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
-              {loading ? <tr><td colSpan={7} className="text-center py-8"><Spinner/></td></tr> :
+              {loading ? <tr><td colSpan={7} className="py-8"><div className="flex justify-center w-full"><Spinner/></div></td></tr> :
                 (!data.users || data.users.length === 0) ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant font-medium">No users found</td></tr>
+                  <tr><td colSpan={7} className="py-8"><div className="flex justify-center w-full text-on-surface-variant font-medium">No users found</div></td></tr>
                 ) : data.users.map(u => (
                   <Fragment key={u.id}>
                   <tr onClick={() => setExpandedId(expandedId === u.id ? null : u.id)} className="hover:bg-surface-container-low transition-colors cursor-pointer lg:cursor-default">
@@ -944,9 +944,9 @@ function LogTable({ endpoint, columns, rowFn, logTypeName, tableClassName }) {
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
               {loading ? (
-                <tr><td colSpan={columns.length} className="text-center py-8"><Spinner /></td></tr>
+                <tr><td colSpan={columns.length} className="py-8"><div className="flex justify-center w-full"><Spinner /></div></td></tr>
               ) : (!data.logs || data.logs.length === 0) ? (
-                <tr><td colSpan={columns.length} className="text-center py-8 text-on-surface-variant">No logs found matching filters.</td></tr>
+                <tr><td colSpan={columns.length} className="py-8"><div className="flex justify-center w-full text-on-surface-variant">No logs found matching filters.</div></td></tr>
               ) : (
                 data.logs.map((log, i) => (
                   <Fragment key={log.id || i}>

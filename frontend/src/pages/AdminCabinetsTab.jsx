@@ -136,9 +136,9 @@ export default function AdminCabinetsTab() {
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
               {loading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant font-medium">Loading...</td></tr>
+                <tr><td colSpan={7} className="py-8"><div className="flex justify-center text-on-surface-variant font-medium">Loading...</div></td></tr>
               ) : (!data.cabinets || data.cabinets.length === 0) ? (
-                <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant font-medium">No cabinets found.</td></tr>
+                <tr><td colSpan={7} className="py-8"><div className="flex justify-center text-on-surface-variant font-medium">No cabinets found.</div></td></tr>
               ) : data.cabinets.map((cabinet) => {
                 const isOffline = cabinet.status === 'APPROVED' && (!cabinet.lastSeenAt || (new Date() - new Date(cabinet.lastSeenAt) > 10000));
                 return (
