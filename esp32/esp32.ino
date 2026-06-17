@@ -124,7 +124,7 @@ void drawStatus(String title, String detail) {
 
 void prepareQr(String payload) {
   if (!payload.length()) payload = currentCode;
-  qrcode_initText(&qrcode, qrcodeBytes, 1, ECC_LOW, payload.c_str());
+  qrcode_initText(&qrcode, qrcodeBytes, 1, ECC_LOW, payload.c_str()); // low error correction for better readability on small screens
 }
 
 void drawOtpScreen(int progressWidth) {
@@ -145,7 +145,7 @@ void drawOtpScreen(int progressWidth) {
 
   // Progress Bar in Yellow Region (y = 12, height = 3)
   if (progressWidth > 0 && currentCode != "------") {
-    display.fillRect(0, 12, progressWidth, 3);
+    display.fillRect(0, 12, progressWidth, 3); // 3 pixel, toa do 12
   }
 
   // 2. Left Half (x = 0 to 63): Symmetrical QR Code or Loading state
@@ -195,7 +195,7 @@ void publishHello() {
 
 // ── NVS Helper functions ──────────────────────────────────────
 void loadSecret() {
-  preferences.begin("locker", true);
+  preferences.begin("locker", true); // true: read-only mode
   totpSecret = preferences.getString("totp_secret", "");
   preferences.end();
   Serial.print("[NVS] Loaded secret length: ");
@@ -394,6 +394,7 @@ void setup() {
   display.init();
   display.flipScreenVertically();
   drawStatus("SMART LOCKER", cabinetIdentity);
+  delay(3000);
 
   // Load persistent NVS variables
   loadSecret();
