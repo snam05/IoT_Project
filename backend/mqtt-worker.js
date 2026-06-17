@@ -2,9 +2,8 @@ import 'dotenv/config';
 import mqtt from 'mqtt';
 import { fileURLToPath } from 'node:url';
 import { getMqttConfig } from './lib/mqtt-config.js';
-import { createCabinetOtp, recordCabinetHello } from './lib/cabinet.js';
+import { recordCabinetHello } from './lib/cabinet.js';
 import { TOPICS } from './lib/mqtt.js';
-import prisma from './lib/prisma.js';
 
 function parseJson(payload) {
   try {

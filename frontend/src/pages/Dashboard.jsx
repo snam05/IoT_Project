@@ -774,6 +774,7 @@ function LogTable({ endpoint, columns, rowFn, logTypeName }) {
         alert('Failed to delete logs: ' + (d.error || 'Unknown error'));
       }
     } catch (err) {
+      console.error(err);
       alert('Network error, failed to delete logs.');
     } finally {
       setClearing(false);

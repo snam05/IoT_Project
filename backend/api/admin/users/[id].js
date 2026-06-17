@@ -34,7 +34,8 @@ export default async function handler(req, res) {
       });
       if (!user) return res.status(404).json({ error: 'User not found' });
       return res.status(200).json(user);
-    } catch {
+    } catch (err) {
+      console.error('[GET /api/admin/users/:id]', err);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
