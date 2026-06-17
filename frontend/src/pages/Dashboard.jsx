@@ -572,6 +572,7 @@ function LogTable({ endpoint, columns, rowFn, logTypeName }) {
 
   // Auto-refresh state
   const [autoRefreshSecs, setAutoRefreshSecs] = useState(0); // 0 means off
+  const [refreshCountdown, setRefreshCountdown] = useState(0);
 
   // Delete modal state
   const [showClearModal, setShowClearModal] = useState(false);
@@ -614,10 +615,20 @@ function LogTable({ endpoint, columns, rowFn, logTypeName }) {
 
   // Auto-refresh effect
   useEffect(() => {
-    if (autoRefreshSecs <= 0) return;
+    if (autoRefreshSecs <= 0) {
+      setRefreshCountdown(0);
+      return;
+    }
+    setRefreshCountdown(autoRefreshSecs);
     const interval = setInterval(() => {
-      load(false); // fetch silently
-    }, autoRefreshSecs * 1000);
+      setRefreshCountdown((prev) => {
+        if (prev <= 1) {
+          load(false); // fetch silently
+          return autoRefreshSecs;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     return () => clearInterval(interval);
   }, [load, autoRefreshSecs]);
 
@@ -744,71 +755,90 @@ function LogTable({ endpoint, columns, rowFn, logTypeName }) {
   return (
     <div className="space-y-4">
       {/* Filters and Controls Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-surface-container-lowest rounded-xl p-4 border border-outline-variant/10">
-        <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
-          {/* Search box */}
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <span className="material-symbols-outlined absolute left-3 top-2.5 text-outline" style={{fontSize:'20px'}}>search</span>
-            <input
-              type="text"
-              placeholder="Search logs..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary"
-            />
+      <div className="flex flex-col gap-4 bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/10 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4 flex-1 min-w-0">
+            {/* Search box */}
+            <div className="relative flex-1 min-w-[240px] max-w-md group">
+              <span className="material-symbols-outlined absolute left-3.5 top-2.5 text-on-surface-variant group-focus-within:text-primary transition-colors" style={{fontSize:'20px'}}>search</span>
+              <input
+                type="text"
+                placeholder="Search logs by user, action, details..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm"
+              />
+            </div>
+
+            {/* Date range filters */}
+            <div className="flex items-center gap-2 bg-surface-container-low p-1 rounded-xl border border-outline-variant/50 shadow-sm">
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => { setStartDate(e.target.value); setPage(1); }}
+                className="px-3 py-1.5 rounded-lg bg-transparent text-body-md focus:outline-none focus:bg-surface-container-lowest transition-colors"
+                title="Start Date"
+              />
+              <span className="material-symbols-outlined text-on-surface-variant" style={{fontSize: '18px'}}>arrow_right_alt</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => { setEndDate(e.target.value); setPage(1); }}
+                className="px-3 py-1.5 rounded-lg bg-transparent text-body-md focus:outline-none focus:bg-surface-container-lowest transition-colors"
+                title="End Date"
+              />
+            </div>
           </div>
 
-          {/* Date range filters */}
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={startDate}
-              onChange={e => { setStartDate(e.target.value); setPage(1); }}
-              className="px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary"
-              title="Start Date"
-            />
-            <span className="text-on-surface-variant text-body-sm">to</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={e => { setEndDate(e.target.value); setPage(1); }}
-              className="px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary"
-              title="End Date"
-            />
-          </div>
-
-          {/* Auto refresh control */}
-          <div className="flex items-center gap-2">
-            <span className="text-label-md text-on-surface-variant font-semibold">Auto Refresh:</span>
-            <select
-              value={autoRefreshSecs}
-              onChange={e => setAutoRefreshSecs(Number(e.target.value))}
-              className="px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary font-semibold"
+          {/* Action buttons (Export, Clear) */}
+          <div className="flex items-center gap-3 pl-4 border-l border-outline-variant/20">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-lowest text-label-md font-bold hover:bg-primary/5 hover:border-primary/30 hover:text-primary active:scale-95 transition-all shadow-sm"
             >
-              <option value={0}>Off</option>
-              <option value={5}>5s</option>
-              <option value={10}>10s</option>
-              <option value={30}>30s</option>
-            </select>
+              <span className="material-symbols-outlined" style={{fontSize:'18px'}}>download</span>
+              Export
+            </button>
+            <button
+              onClick={() => setShowClearModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-label-md font-bold hover:bg-red-100 active:scale-95 transition-all shadow-sm"
+            >
+              <span className="material-symbols-outlined" style={{fontSize:'18px'}}>delete_sweep</span>
+              Clear
+            </button>
           </div>
         </div>
-
-        {/* Action buttons (Export, Clear) */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-outline-variant text-label-md font-semibold hover:bg-surface-container-low active:scale-95 transition-all"
-          >
-            <span className="material-symbols-outlined" style={{fontSize:'18px'}}>download</span>
-            Export CSV
-          </button>
-          <button
-            onClick={() => setShowClearModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-100 text-red-700 text-label-md font-semibold hover:bg-red-200 active:scale-95 transition-all"
-          >
-            <span className="material-symbols-outlined" style={{fontSize:'18px'}}>delete_sweep</span>
-            Clear Logs
-          </button>
+        
+        {/* Secondary Toolbar Row for Auto Refresh & Stats */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-outline-variant/10">
+           {/* Auto refresh control */}
+          <div className="flex items-center gap-3 bg-surface-container-low px-3 py-1.5 rounded-xl border border-outline-variant/50 shadow-sm">
+            <span className="text-label-md text-on-surface-variant font-medium flex items-center gap-1.5">
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>sync</span>
+              Auto Refresh:
+            </span>
+            <div className="flex items-center gap-2">
+              <select
+                value={autoRefreshSecs}
+                onChange={e => setAutoRefreshSecs(Number(e.target.value))}
+                className="bg-transparent text-primary font-bold focus:outline-none cursor-pointer"
+              >
+                <option value={0}>Off</option>
+                <option value={5}>5s</option>
+                <option value={10}>10s</option>
+                <option value={30}>30s</option>
+              </select>
+              {autoRefreshSecs > 0 && (
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold ring-1 ring-primary/20" title="Seconds until next refresh">
+                  {refreshCountdown}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="text-body-sm text-on-surface-variant font-medium">
+            Showing <span className="font-bold text-primary">{data.logs.length}</span> logs on this page
+          </div>
         </div>
       </div>
 
