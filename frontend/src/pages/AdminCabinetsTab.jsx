@@ -107,13 +107,13 @@ export default function AdminCabinetsTab() {
         <div className="flex flex-col sm:flex-row items-center gap-3 flex-1 w-full">
           <div className="relative w-full sm:w-auto sm:max-w-sm">
             <select value={status} onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-4 py-2.5 appearance-none rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md font-medium focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
+              className="w-full px-4 py-2.5 pr-10 appearance-none rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md font-medium focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
               <option value="">All Cabinets</option>
               <option>PENDING</option>
               <option>APPROVED</option>
               <option>REJECTED</option>
             </select>
-            <span className="material-symbols-outlined absolute right-3 top-3 text-on-surface-variant pointer-events-none" style={{fontSize:'20px'}}>expand_more</span>
+            <span className="material-symbols-outlined absolute right-4 top-3 text-on-surface-variant pointer-events-none" style={{fontSize:'20px'}}>expand_more</span>
           </div>
           {message && <span className="text-body-md text-error font-medium w-full sm:w-auto text-center sm:text-left">{message}</span>}
         </div>
@@ -125,7 +125,7 @@ export default function AdminCabinetsTab() {
 
       <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm responsive-table table-cabinets">
             <thead className="bg-surface-container-low border-b border-outline-variant/10">
               <tr>
                 {['Identity', 'Cabinet Code', 'Compartments', 'Status', 'Last Seen', 'DB Lockers', 'Actions'].map((h) => (
@@ -149,7 +149,7 @@ export default function AdminCabinetsTab() {
                     <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{cabinet.lastSeenAt ? new Date(cabinet.lastSeenAt).toLocaleString() : '-'}</td>
                     <td className="px-5 py-3 text-on-surface-variant font-medium">{cabinet._count?.lockers || 0}</td>
                     <td className="px-5 py-3">
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-nowrap gap-2">
                         {cabinet.status === 'APPROVED' && (
                           <>
                             <button onClick={() => update(cabinet.id, 'unlock_all')} disabled={busyId === cabinet.id || isOffline}

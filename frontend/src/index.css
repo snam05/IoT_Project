@@ -114,3 +114,103 @@
   background: #cfc4c5;
   border-radius: 999px;
 }
+
+/* ─── Responsive Table ───────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .responsive-table, 
+  .responsive-table thead, 
+  .responsive-table tbody, 
+  .responsive-table th, 
+  .responsive-table td, 
+  .responsive-table tr {
+    display: block;
+    width: 100%;
+  }
+  
+  .responsive-table {
+    min-width: 0 !important;
+  }
+
+  .responsive-table thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+  
+  .responsive-table tr {
+    margin-bottom: 1rem;
+    border: 1px solid #e2e2e4;
+    border-radius: 12px;
+    background-color: #fff;
+    overflow: hidden;
+  }
+  
+  .responsive-table td {
+    border: none;
+    border-bottom: 1px solid #f1f1f3;
+    position: relative;
+    padding: 12px 16px 12px 40% !important;
+    text-align: right !important;
+    min-height: 48px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    word-break: break-word;
+    white-space: normal !important;
+  }
+  
+  .responsive-table td:last-child {
+    border-bottom: none;
+  }
+  
+  .responsive-table td::before {
+    position: absolute;
+    left: 16px;
+    width: 35%;
+    white-space: nowrap;
+    text-align: left;
+    font-weight: 600;
+    color: #8E8E93;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 13px;
+  }
+
+  /* Table Headers for mobile view */
+  .table-cabinets td:nth-child(1)::before { content: "Identity"; }
+  .table-cabinets td:nth-child(2)::before { content: "Cabinet Code"; }
+  .table-cabinets td:nth-child(3)::before { content: "Compartments"; }
+  .table-cabinets td:nth-child(4)::before { content: "Status"; }
+  .table-cabinets td:nth-child(5)::before { content: "Last Seen"; }
+  .table-cabinets td:nth-child(6)::before { content: "DB Lockers"; }
+  .table-cabinets td:nth-child(7)::before { content: "Actions"; }
+
+  .table-lockers td:nth-child(1)::before { content: "Locker ID"; }
+  .table-lockers td:nth-child(2)::before { content: "Zone"; }
+  .table-lockers td:nth-child(3)::before { content: "Floor"; }
+  .table-lockers td:nth-child(4)::before { content: "Status"; }
+  .table-lockers td:nth-child(5)::before { content: "Assigned User"; }
+  .table-lockers td:nth-child(6)::before { content: "Locked At"; }
+  .table-lockers td:nth-child(7)::before { content: "Actions"; }
+
+  .table-users td:nth-child(1)::before { content: "Name"; }
+  .table-users td:nth-child(2)::before { content: "Username"; }
+  .table-users td:nth-child(3)::before { content: "Email"; }
+  .table-users td:nth-child(4)::before { content: "Role"; }
+  .table-users td:nth-child(5)::before { content: "Status"; }
+  .table-users td:nth-child(6)::before { content: "Created"; }
+  .table-users td:nth-child(7)::before { content: "Actions"; }
+
+  .table-logs-system td:nth-child(1)::before { content: "Time"; }
+  .table-logs-system td:nth-child(2)::before { content: "User"; }
+  .table-logs-system td:nth-child(3)::before { content: "Action"; }
+  .table-logs-system td:nth-child(4)::before { content: "Details"; }
+  .table-logs-system td:nth-child(5)::before { content: "IP"; }
+
+  .table-logs-lockers td:nth-child(1)::before { content: "Time"; }
+  .table-logs-lockers td:nth-child(2)::before { content: "Locker ID"; }
+  .table-logs-lockers td:nth-child(3)::before { content: "Zone"; }
+  .table-logs-lockers td:nth-child(4)::before { content: "User"; }
+  .table-logs-lockers td:nth-child(5)::before { content: "Action"; }
+  .table-logs-lockers td:nth-child(6)::before { content: "Method"; }
+}

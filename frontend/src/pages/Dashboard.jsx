@@ -205,7 +205,7 @@ function LockersTab() {
       </div>
       <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm responsive-table table-lockers">
             <thead className="bg-surface-container-low border-b border-outline-variant/10">
               <tr>
                 {['Locker ID','Zone','Floor','Status','Assigned User','Locked At','Actions'].map(h=>(
@@ -516,7 +516,7 @@ function UsersTab() {
 
       <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm responsive-table table-users">
             <thead className="bg-surface-container-low border-b border-outline-variant/10">
               <tr>
                 {['Name','Username','Email','Role','Status','Created','Actions'].map(h=>(
@@ -543,7 +543,7 @@ function UsersTab() {
                     </td>
                     <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{new Date(u.createdAt).toLocaleDateString()}</td>
                     <td className="px-5 py-3">
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-nowrap gap-2">
                         <button onClick={()=>toggleActive(u.id, u.isActive)}
                           disabled={u.id === currentUser?.id}
                           title={u.id === currentUser?.id ? "You cannot deactivate your own account" : ""}
@@ -586,7 +586,7 @@ function UsersTab() {
 
 // ── Generic Log Table ─────────────────────────────────────────
 // ── Generic Log Table ─────────────────────────────────────────
-function LogTable({ endpoint, columns, rowFn, logTypeName }) {
+function LogTable({ endpoint, columns, rowFn, logTypeName, tableClassName }) {
   const [data, setData] = useState({ logs: [], total: 0, page: 1, pages: 1 });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -874,7 +874,7 @@ function LogTable({ endpoint, columns, rowFn, logTypeName }) {
       {/* Main Table */}
       <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className={`w-full text-sm responsive-table ${tableClassName || ''}`}>
             <thead className="bg-surface-container-low border-b border-outline-variant/10">
               <tr>
                 {columns.map(c => (
@@ -1044,6 +1044,7 @@ export default function Dashboard() {
           <LogTable
             endpoint="/api/admin/logs/lockers"
             logTypeName="Unlock Logs"
+            tableClassName="table-logs-lockers"
             columns={['Time', 'Locker ID', 'Zone', 'User', 'Action', 'Method']}
             rowFn={l => (
               <>
@@ -1065,6 +1066,7 @@ export default function Dashboard() {
           <LogTable
             endpoint="/api/admin/logs/system"
             logTypeName="System Logs"
+            tableClassName="table-logs-system"
             columns={['Time', 'User', 'Action', 'Details', 'IP']}
             rowFn={l => (
               <>
