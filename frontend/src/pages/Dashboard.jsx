@@ -65,16 +65,16 @@ function OverviewTab() {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {!stats ? Array.from({length:4}).map((_,i)=><div key={i} className="bg-surface-container-lowest rounded-xl p-6 h-32 animate-pulse border border-outline-variant/10"/>) :
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        {!stats ? Array.from({length:4}).map((_,i)=><div key={i} className="bg-surface-container-lowest rounded-2xl p-6 h-36 animate-pulse border border-outline-variant/10 shadow-sm"/>) :
           statCards.map(s => (
-            <div key={s.label} className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/10 hover:shadow-card transition-shadow">
-              <div className="flex justify-between mb-4">
-                <span className="text-label-md text-on-surface-variant">{s.label}</span>
-                <span className="material-symbols-outlined text-outline" style={{fontSize:'20px'}}>{s.icon}</span>
+            <div key={s.label} className="bg-surface-container-lowest rounded-2xl p-6 border border-outline-variant/10 shadow-sm hover:shadow-md transition-all group">
+              <div className="flex justify-between items-start mb-4">
+                <span className="text-label-lg font-medium text-on-surface-variant">{s.label}</span>
+                <span className="material-symbols-outlined text-outline group-hover:text-primary transition-colors" style={{fontSize:'24px'}}>{s.icon}</span>
               </div>
-              <div className={`text-display-lg font-bold text-primary ${s.color||''}`}>{s.value}</div>
-              <div className="text-body-md text-on-surface-variant mt-1">{s.sub}</div>
+              <div className={`text-display-md font-bold text-on-surface ${s.color||''}`}>{s.value}</div>
+              <div className="text-body-sm font-medium text-on-surface-variant mt-2 bg-surface-container-low inline-block px-2.5 py-1 rounded-lg">{s.sub}</div>
             </div>
           ))
         }
@@ -98,7 +98,7 @@ function LockersTab() {
         set.add(c.cabinetCode.slice(0, 10).toUpperCase());
       }
     });
-    data.lockers.forEach(l => {
+    (data.lockers || []).forEach(l => {
       if (l.zone) {
         set.add(l.zone.toUpperCase());
       }
@@ -165,50 +165,66 @@ function LockersTab() {
 
   return (
     <div>
-      <div className="flex flex-wrap gap-3 mb-6">
-        <select value={filter.status} onChange={e=>setFilter(f=>({...f,status:e.target.value}))}
-          className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
-          <option value="">All Status</option>
-          <option>AVAILABLE</option><option>IN_USE</option><option>MAINTENANCE</option>
-        </select>
-        <select value={filter.zone} onChange={e=>setFilter(f=>({...f,zone:e.target.value}))}
-          className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
-          <option value="">All Zones</option>
-          {zones.map(z => (
-            <option key={z} value={z}>{z}</option>
-          ))}
-        </select>
-        <select value={filter.cabinetId} onChange={e=>setFilter(f=>({...f,cabinetId:e.target.value}))}
-          className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
-          <option value="">All Cabinets</option>
-          {cabinets.map(c => (
-            <option key={c.id} value={c.id}>
-              {c.cabinetCode} ({c.identity})
-            </option>
-          ))}
-        </select>
-        <button onClick={load} className="px-4 py-2 rounded-xl bg-secondary text-white text-label-md font-semibold hover:opacity-90 active:scale-95 transition-all">Refresh</button>
+      <div className="flex flex-col lg:flex-row gap-4 mb-6 bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/10 shadow-sm items-start lg:items-center">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1 w-full">
+          <div className="relative">
+            <select value={filter.status} onChange={e=>setFilter(f=>({...f,status:e.target.value}))}
+              className="w-full px-4 py-2.5 appearance-none rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium">
+              <option value="">All Status</option>
+              <option>AVAILABLE</option><option>IN_USE</option><option>MAINTENANCE</option>
+            </select>
+            <span className="material-symbols-outlined absolute right-3 top-3 text-on-surface-variant pointer-events-none" style={{fontSize:'20px'}}>expand_more</span>
+          </div>
+          <div className="relative">
+            <select value={filter.zone} onChange={e=>setFilter(f=>({...f,zone:e.target.value}))}
+              className="w-full px-4 py-2.5 appearance-none rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium">
+              <option value="">All Zones</option>
+              {zones.map(z => (
+                <option key={z} value={z}>{z}</option>
+              ))}
+            </select>
+            <span className="material-symbols-outlined absolute right-3 top-3 text-on-surface-variant pointer-events-none" style={{fontSize:'20px'}}>expand_more</span>
+          </div>
+          <div className="relative">
+            <select value={filter.cabinetId} onChange={e=>setFilter(f=>({...f,cabinetId:e.target.value}))}
+              className="w-full px-4 py-2.5 appearance-none rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium">
+              <option value="">All Cabinets</option>
+              {cabinets.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.cabinetCode} ({c.identity})
+                </option>
+              ))}
+            </select>
+            <span className="material-symbols-outlined absolute right-3 top-3 text-on-surface-variant pointer-events-none" style={{fontSize:'20px'}}>expand_more</span>
+          </div>
+        </div>
+        <button onClick={load} className="w-full lg:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm">
+          <span className="material-symbols-outlined" style={{fontSize:'20px'}}>refresh</span>
+          Refresh
+        </button>
       </div>
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-surface-container-low border-b border-outline-variant/10">
               <tr>
                 {['Locker ID','Zone','Floor','Status','Assigned User','Locked At','Actions'].map(h=>(
-                  <th key={h} className="text-left px-4 py-3 text-label-md text-on-surface-variant font-semibold">{h}</th>
+                  <th key={h} className="text-left px-5 py-4 text-label-md text-on-surface-variant font-bold whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
               {loading ? (
                 <tr><td colSpan={7} className="text-center py-8"><Spinner/></td></tr>
+              ) : (!data.lockers || data.lockers.length === 0) ? (
+                <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant font-medium">No lockers found</td></tr>
               ) : data.lockers.map(l => {
                 const isOffline = l.cabinet && (!l.cabinet.lastSeenAt || (new Date() - new Date(l.cabinet.lastSeenAt) > 10000));
                 return (
                   <tr key={l.lockerId} className={`hover:bg-surface-container-low transition-colors ${isOffline ? 'opacity-40 bg-surface-container-lowest select-none' : ''}`}>
-                    <td className="px-4 py-3 font-mono font-semibold text-primary">{formatLockerId(l)}</td>
-                    <td className="px-4 py-3 text-on-surface-variant">{l.zone}</td>
-                    <td className="px-4 py-3 text-on-surface-variant">
+                    <td className="px-5 py-3 font-mono font-bold text-primary">{formatLockerId(l)}</td>
+                    <td className="px-5 py-3 text-on-surface-variant font-medium">{l.zone}</td>
+                    <td className="px-5 py-3 text-on-surface-variant font-medium">
                       <div className="flex items-center gap-1.5 group">
                         <span>{l.floor}</span>
                         <button onClick={() => { if (!isOffline) { setEditingFloorLocker(l); setNewFloor(String(l.floor)); } }}
@@ -221,22 +237,22 @@ function LockersTab() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3">
                       {isOffline ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-600 border border-gray-300">OFFLINE</span>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-200 text-gray-600 border border-gray-300">OFFLINE</span>
                       ) : (
                         <Badge status={l.status}/>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3">
                       {l.user?.role === 'ADMIN' ? (
-                        <span className="text-red-600 font-semibold">Admin</span>
+                        <span className="text-red-600 font-bold">Admin</span>
                       ) : (
-                        <span className="text-on-surface-variant">{l.user?.name || '—'}</span>
+                        <span className="text-on-surface-variant font-medium">{l.user?.name || '—'}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-on-surface-variant text-xs">{l.lockedAt ? new Date(l.lockedAt).toLocaleString() : '—'}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{l.lockedAt ? new Date(l.lockedAt).toLocaleString() : '—'}</td>
+                    <td className="px-5 py-3">
                       <div className="flex gap-2">
                         {l.status === 'IN_USE' && (
                           <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', 'unlock')}
@@ -274,7 +290,7 @@ function LockersTab() {
             </tbody>
           </table>
         </div>
-        <div className="px-4 py-3 border-t border-outline-variant/10 text-label-md text-on-surface-variant">
+        <div className="px-5 py-4 border-t border-outline-variant/10 text-label-md font-medium text-on-surface-variant bg-surface-container-low/30">
           Total: {data.total} lockers
         </div>
       </div>
@@ -416,41 +432,48 @@ function UsersTab() {
 
   return (
     <div>
-      <div className="flex flex-wrap gap-3 mb-6 items-center">
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search users..."
-          className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary flex-1 min-w-48"/>
+      <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center justify-between bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/10 shadow-sm">
+        <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-md group">
+          <span className="material-symbols-outlined absolute left-3.5 top-2.5 text-on-surface-variant group-focus-within:text-primary transition-colors" style={{fontSize:'20px'}}>search</span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search users by name, email, username..."
+            className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md font-medium focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm"/>
+        </div>
         <button onClick={() => setShowCreate(s=>!s)}
-          className="flex items-center gap-2 px-5 py-2 rounded-xl bg-primary text-on-primary text-label-md font-semibold hover:opacity-90 active:scale-95 transition-all">
-          <span className="material-symbols-outlined" style={{fontSize:'18px'}}>person_add</span>
-          Add User
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm whitespace-nowrap">
+          <span className="material-symbols-outlined" style={{fontSize:'20px'}}>{showCreate ? 'close' : 'person_add'}</span>
+          {showCreate ? 'Close Form' : 'Add User'}
         </button>
       </div>
 
       {showCreate && (
-        <form onSubmit={createUser} className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 mb-6 grid grid-cols-2 gap-4">
-          <h3 className="col-span-2 text-headline-md text-primary font-semibold">Create New User</h3>
-          {[['username','Username','text'],['email','Email','email'],['name','Full Name','text'],['password','Password','password']].map(([k,l,t])=>(
-            <div key={k}>
-              <label className="text-label-md text-on-surface-variant mb-1 block">{l}</label>
-              <input type={t} value={form[k]} required onChange={e=>setForm(f=>({...f,[k]:e.target.value}))}
-                className="w-full px-3 py-2.5 rounded-xl border border-outline-variant bg-background text-body-md focus:outline-none focus:ring-2 focus:ring-secondary"/>
+        <form onSubmit={createUser} className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 p-6 md:p-8 mb-6 shadow-sm">
+          <h3 className="text-headline-sm text-primary font-bold mb-6 flex items-center gap-2">
+            <span className="material-symbols-outlined">person_add</span> Create New User
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+            {[['username','Username','text'],['email','Email','email'],['name','Full Name','text'],['password','Password','password']].map(([k,l,t])=>(
+              <div key={k}>
+                <label className="text-label-md text-on-surface-variant mb-1.5 block font-medium">{l}</label>
+                <input type={t} value={form[k]} required onChange={e=>setForm(f=>({...f,[k]:e.target.value}))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"/>
+              </div>
+            ))}
+            <div>
+              <label className="text-label-md text-on-surface-variant mb-1.5 block font-medium">Role</label>
+              <select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}
+                className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
+                <option>USER</option><option>ADMIN</option>
+              </select>
             </div>
-          ))}
-          <div>
-            <label className="text-label-md text-on-surface-variant mb-1 block">Role</label>
-            <select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}
-              className="w-full px-3 py-2.5 rounded-xl border border-outline-variant bg-background text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
-              <option>USER</option><option>ADMIN</option>
-            </select>
           </div>
-          {msg && <p className="col-span-2 text-body-md text-error">{msg}</p>}
-          <div className="col-span-2 flex gap-3">
+          {msg && <p className="text-body-md text-error font-medium mb-5">{msg}</p>}
+          <div className="flex flex-wrap gap-3 pt-5 border-t border-outline-variant/10">
             <button type="submit" disabled={creating}
-              className="px-6 py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-semibold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">
-              {creating ? 'Creating...' : 'Create User'}
+              className="flex-1 md:flex-none px-6 py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              {creating ? 'Creating...' : 'Confirm Creation'}
             </button>
             <button type="button" onClick={()=>setShowCreate(false)}
-              className="px-6 py-2.5 rounded-xl border border-outline-variant text-on-surface text-label-md hover:bg-surface-container-low transition-all">
+              className="flex-1 md:flex-none px-6 py-2.5 rounded-xl border border-outline-variant/60 text-on-surface text-label-md font-bold hover:bg-surface-container-low active:scale-95 transition-all">
               Cancel
             </button>
           </div>
@@ -458,64 +481,69 @@ function UsersTab() {
       )}
 
       {resettingUser && (
-        <form onSubmit={handleResetPassword} className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 mb-6">
-          <h3 className="text-headline-md text-primary font-semibold mb-4">Reset Password for {resettingUser.name} (@{resettingUser.username})</h3>
-          <div className="flex flex-col sm:flex-row gap-4 items-end max-w-xl">
+        <form onSubmit={handleResetPassword} className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 p-6 md:p-8 mb-6 shadow-sm">
+          <h3 className="text-headline-sm text-primary font-bold mb-6 flex items-center gap-2">
+            <span className="material-symbols-outlined">lock_reset</span> Reset Password
+          </h3>
+          <p className="text-body-md text-on-surface-variant mb-5">Resetting password for <strong className="text-on-surface">{resettingUser.name}</strong> (@{resettingUser.username})</p>
+          <div className="flex flex-col sm:flex-row gap-4 items-end max-w-xl mb-2">
             <div className="flex-1 w-full">
-              <label className="text-label-md text-on-surface-variant mb-1 block">New Password</label>
+              <label className="text-label-md text-on-surface-variant mb-1.5 block font-medium">New Password</label>
               <input
                 type="password"
                 value={newPassword}
                 required
                 minLength={8}
                 onChange={e=>setNewPassword(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-outline-variant bg-background text-body-md focus:outline-none focus:ring-2 focus:ring-secondary"
+                className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 placeholder="At least 8 characters"
               />
             </div>
-            <div className="flex gap-3">
-              <button type="submit" disabled={resetting}
-                className="px-6 py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-semibold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
-                {resetting ? 'Resetting...' : 'Update Password'}
-              </button>
-              <button type="button" onClick={()=>{setResettingUser(null); setNewPassword(''); setResetMsg('');}}
-                className="px-6 py-2.5 rounded-xl border border-outline-variant text-on-surface text-label-md hover:bg-surface-container-low transition-all whitespace-nowrap">
-                Cancel
-              </button>
-            </div>
           </div>
-          {resetMsg && <p className="text-body-md text-error mt-2">{resetMsg}</p>}
+          {resetMsg && <p className="text-body-md text-error font-medium mt-3 mb-2">{resetMsg}</p>}
+          <div className="flex flex-wrap gap-3 pt-5 mt-5 border-t border-outline-variant/10">
+            <button type="submit" disabled={resetting}
+              className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
+              {resetting ? 'Resetting...' : 'Update Password'}
+            </button>
+            <button type="button" onClick={()=>{setResettingUser(null); setNewPassword(''); setResetMsg('');}}
+              className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl border border-outline-variant/60 text-on-surface text-label-md font-bold hover:bg-surface-container-low transition-all whitespace-nowrap active:scale-95">
+              Cancel
+            </button>
+          </div>
         </form>
       )}
 
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-surface-container-low border-b border-outline-variant/10">
               <tr>
                 {['Name','Username','Email','Role','Status','Created','Actions'].map(h=>(
-                  <th key={h} className="text-left px-4 py-3 text-label-md text-on-surface-variant font-semibold">{h}</th>
+                  <th key={h} className="text-left px-5 py-4 text-label-md text-on-surface-variant font-bold whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
               {loading ? <tr><td colSpan={7} className="text-center py-8"><Spinner/></td></tr> :
-                data.users.map(u => (
+                (!data.users || data.users.length === 0) ? (
+                  <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant font-medium">No users found</td></tr>
+                ) : data.users.map(u => (
                   <tr key={u.id} className="hover:bg-surface-container-low transition-colors">
-                    <td className="px-4 py-3 font-semibold text-primary">{u.name}</td>
-                    <td className="px-4 py-3 font-mono text-on-surface-variant">{u.username}</td>
-                    <td className="px-4 py-3 text-on-surface-variant">{u.email}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${u.role==='ADMIN'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'}`}>{u.role}</span>
+                    <td className="px-5 py-3 font-bold text-primary">{u.name}</td>
+                    <td className="px-5 py-3 font-mono text-on-surface-variant font-medium">{u.username}</td>
+                    <td className="px-5 py-3 text-on-surface-variant font-medium">{u.email}</td>
+                    <td className="px-5 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${u.role==='ADMIN'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'}`}>{u.role}</span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${u.isActive?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>
+                    <td className="px-5 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${u.isActive?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>
                         {u.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-on-surface-variant text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
+                    <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td className="px-5 py-3">
+                      <div className="flex flex-wrap gap-2">
                         <button onClick={()=>toggleActive(u.id, u.isActive)}
                           disabled={u.id === currentUser?.id}
                           title={u.id === currentUser?.id ? "You cannot deactivate your own account" : ""}
@@ -540,7 +568,7 @@ function UsersTab() {
             </tbody>
           </table>
         </div>
-        <div className="px-4 py-3 border-t border-outline-variant/10 text-label-md text-on-surface-variant">Total: {data.total} users</div>
+        <div className="px-5 py-4 border-t border-outline-variant/10 text-label-md font-medium text-on-surface-variant bg-surface-container-low/30">Total: {data.total} users</div>
       </div>
 
       <ConfirmDialog
@@ -756,52 +784,52 @@ function LogTable({ endpoint, columns, rowFn, logTypeName }) {
     <div className="space-y-4">
       {/* Filters and Controls Toolbar */}
       <div className="flex flex-col gap-4 bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/10 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-4 flex-1 min-w-0">
+        <div className="flex flex-col lg:flex-row justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 flex-1">
             {/* Search box */}
-            <div className="relative flex-1 min-w-[240px] max-w-md group">
+            <div className="relative w-full sm:flex-1 sm:max-w-md group">
               <span className="material-symbols-outlined absolute left-3.5 top-2.5 text-on-surface-variant group-focus-within:text-primary transition-colors" style={{fontSize:'20px'}}>search</span>
               <input
                 type="text"
                 placeholder="Search logs by user, action, details..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm"
+                className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md font-medium focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm"
               />
             </div>
 
             {/* Date range filters */}
-            <div className="flex items-center gap-2 bg-surface-container-low p-1 rounded-xl border border-outline-variant/50 shadow-sm">
+            <div className="flex items-center gap-2 bg-surface-container-low p-1 rounded-xl border border-outline-variant/50 shadow-sm w-full sm:w-auto justify-center">
               <input
                 type="date"
                 value={startDate}
                 onChange={e => { setStartDate(e.target.value); setPage(1); }}
-                className="px-3 py-1.5 rounded-lg bg-transparent text-body-md focus:outline-none focus:bg-surface-container-lowest transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-transparent text-body-md font-medium focus:outline-none focus:bg-surface-container-lowest transition-colors flex-1 w-0 sm:w-auto"
                 title="Start Date"
               />
-              <span className="material-symbols-outlined text-on-surface-variant" style={{fontSize: '18px'}}>arrow_right_alt</span>
+              <span className="material-symbols-outlined text-on-surface-variant shrink-0" style={{fontSize: '18px'}}>arrow_right_alt</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={e => { setEndDate(e.target.value); setPage(1); }}
-                className="px-3 py-1.5 rounded-lg bg-transparent text-body-md focus:outline-none focus:bg-surface-container-lowest transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-transparent text-body-md font-medium focus:outline-none focus:bg-surface-container-lowest transition-colors flex-1 w-0 sm:w-auto"
                 title="End Date"
               />
             </div>
           </div>
 
           {/* Action buttons (Export, Clear) */}
-          <div className="flex items-center gap-3 pl-4 border-l border-outline-variant/20">
+          <div className="flex items-center gap-3 pt-4 lg:pt-0 lg:pl-4 border-t lg:border-t-0 lg:border-l border-outline-variant/20 w-full lg:w-auto">
             <button
               onClick={handleExportCSV}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-lowest text-label-md font-bold hover:bg-primary/5 hover:border-primary/30 hover:text-primary active:scale-95 transition-all shadow-sm"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-lowest text-label-md font-bold hover:bg-primary/5 hover:border-primary/30 hover:text-primary active:scale-95 transition-all shadow-sm"
             >
               <span className="material-symbols-outlined" style={{fontSize:'18px'}}>download</span>
               Export
             </button>
             <button
               onClick={() => setShowClearModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-label-md font-bold hover:bg-red-100 active:scale-95 transition-all shadow-sm"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-label-md font-bold hover:bg-red-100 active:scale-95 transition-all shadow-sm"
             >
               <span className="material-symbols-outlined" style={{fontSize:'18px'}}>delete_sweep</span>
               Clear
@@ -810,9 +838,9 @@ function LogTable({ endpoint, columns, rowFn, logTypeName }) {
         </div>
         
         {/* Secondary Toolbar Row for Auto Refresh & Stats */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-outline-variant/10">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-outline-variant/10">
            {/* Auto refresh control */}
-          <div className="flex items-center gap-3 bg-surface-container-low px-3 py-1.5 rounded-xl border border-outline-variant/50 shadow-sm">
+          <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-3 bg-surface-container-low px-3 py-1.5 rounded-xl border border-outline-variant/50 shadow-sm">
             <span className="text-label-md text-on-surface-variant font-medium flex items-center gap-1.5">
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>sync</span>
               Auto Refresh:
@@ -821,7 +849,7 @@ function LogTable({ endpoint, columns, rowFn, logTypeName }) {
               <select
                 value={autoRefreshSecs}
                 onChange={e => setAutoRefreshSecs(Number(e.target.value))}
-                className="bg-transparent text-primary font-bold focus:outline-none cursor-pointer"
+                className="bg-transparent text-primary font-bold appearance-none focus:outline-none cursor-pointer pr-4"
               >
                 <option value={0}>Off</option>
                 <option value={5}>5s</option>
@@ -837,26 +865,26 @@ function LogTable({ endpoint, columns, rowFn, logTypeName }) {
           </div>
           
           <div className="text-body-sm text-on-surface-variant font-medium">
-            Showing <span className="font-bold text-primary">{data.logs.length}</span> logs on this page
+            Showing <span className="font-bold text-primary">{data.logs?.length || 0}</span> logs on this page
           </div>
         </div>
       </div>
 
       {/* Main Table */}
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-surface-container-low border-b border-outline-variant/10">
               <tr>
                 {columns.map(c => (
-                  <th key={c} className="text-left px-4 py-3 text-label-md text-on-surface-variant font-semibold">{c}</th>
+                  <th key={c} className="text-left px-5 py-4 text-label-md text-on-surface-variant font-bold whitespace-nowrap">{c}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
               {loading ? (
                 <tr><td colSpan={columns.length} className="text-center py-8"><Spinner /></td></tr>
-              ) : data.logs.length === 0 ? (
+              ) : (!data.logs || data.logs.length === 0) ? (
                 <tr><td colSpan={columns.length} className="text-center py-8 text-on-surface-variant">No logs found matching filters.</td></tr>
               ) : (
                 data.logs.map((log, i) => <tr key={log.id || i} className="hover:bg-surface-container-low transition-colors">{rowFn(log)}</tr>)
@@ -866,8 +894,8 @@ function LogTable({ endpoint, columns, rowFn, logTypeName }) {
         </div>
         
         {/* Pagination */}
-        <div className="px-4 py-3 border-t border-outline-variant/10 flex flex-wrap gap-4 items-center justify-between">
-          <span className="text-label-md text-on-surface-variant">Page {data.page} of {data.pages} ({data.total} total)</span>
+        <div className="px-5 py-4 border-t border-outline-variant/10 flex flex-wrap gap-4 items-center justify-between bg-surface-container-low/30">
+          <span className="text-label-md font-medium text-on-surface-variant">Page {data.page} of {data.pages} ({data.total} total)</span>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1.5">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1 || loading}
@@ -1018,15 +1046,15 @@ export default function Dashboard() {
             columns={['Time', 'Locker ID', 'Zone', 'User', 'Action', 'Method']}
             rowFn={l => (
               <>
-                <td className="px-4 py-3 text-on-surface-variant text-xs">{new Date(l.timestamp).toLocaleString()}</td>
-                <td className="px-4 py-3 font-mono font-semibold text-primary">{formatLockerId(l.locker || l.lockerId)}</td>
-                <td className="px-4 py-3 text-on-surface-variant">{l.locker?.zone || '—'}</td>
-                <td className="px-4 py-3 text-on-surface-variant">{l.user?.name || 'Unknown'}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${l.action==='unlock'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'}`}>{l.action}</span>
+                <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{new Date(l.timestamp).toLocaleString()}</td>
+                <td className="px-5 py-3 font-mono font-bold text-primary">{formatLockerId(l.locker || l.lockerId)}</td>
+                <td className="px-5 py-3 text-on-surface-variant font-medium">{l.locker?.zone || '—'}</td>
+                <td className="px-5 py-3 text-on-surface-variant font-medium">{l.user?.name || 'Unknown'}</td>
+                <td className="px-5 py-3">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${l.action==='unlock'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'}`}>{l.action}</span>
                 </td>
-                <td className="px-4 py-3">
-                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">{l.method}</span>
+                <td className="px-5 py-3">
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">{l.method}</span>
                 </td>
               </>
             )}
@@ -1039,11 +1067,11 @@ export default function Dashboard() {
             columns={['Time', 'User', 'Action', 'Details', 'IP']}
             rowFn={l => (
               <>
-                <td className="px-4 py-3 text-on-surface-variant text-xs">{new Date(l.timestamp).toLocaleString()}</td>
-                <td className="px-4 py-3 text-on-surface-variant">{l.user?.username || 'System'}</td>
-                <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant">{l.action}</span></td>
-                <td className="px-4 py-3 text-on-surface-variant text-xs max-w-xs truncate">{l.details || '—'}</td>
-                <td className="px-4 py-3 font-mono text-on-surface-variant text-xs">{l.ipAddress || '—'}</td>
+                <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{new Date(l.timestamp).toLocaleString()}</td>
+                <td className="px-5 py-3 text-on-surface-variant font-medium">{l.user?.username || 'System'}</td>
+                <td className="px-5 py-3"><span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container-high text-on-surface-variant">{l.action}</span></td>
+                <td className="px-5 py-3 text-on-surface-variant text-xs max-w-xs truncate font-medium">{l.details || '—'}</td>
+                <td className="px-5 py-3 font-mono text-on-surface-variant text-xs font-medium">{l.ipAddress || '—'}</td>
               </>
             )}
           />

@@ -103,75 +103,83 @@ export default function AdminCabinetsTab() {
 
   return (
     <div>
-      <div className="flex flex-wrap gap-3 mb-6 items-center">
-        <select value={status} onChange={(e) => setStatus(e.target.value)}
-          className="px-4 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-body-md focus:outline-none focus:ring-2 focus:ring-secondary">
-          <option value="">All Cabinets</option>
-          <option>PENDING</option>
-          <option>APPROVED</option>
-          <option>REJECTED</option>
-        </select>
-        <button onClick={load} className="px-4 py-2 rounded-xl bg-secondary text-white text-label-md font-semibold hover:opacity-90 active:scale-95 transition-all">Refresh</button>
-        {message && <span className="text-body-md text-error">{message}</span>}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6 bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/10 shadow-sm items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center gap-3 flex-1 w-full">
+          <div className="relative w-full sm:w-auto sm:max-w-sm">
+            <select value={status} onChange={(e) => setStatus(e.target.value)}
+              className="w-full px-4 py-2.5 appearance-none rounded-xl border border-outline-variant/60 bg-surface-container-low text-body-md font-medium focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
+              <option value="">All Cabinets</option>
+              <option>PENDING</option>
+              <option>APPROVED</option>
+              <option>REJECTED</option>
+            </select>
+            <span className="material-symbols-outlined absolute right-3 top-3 text-on-surface-variant pointer-events-none" style={{fontSize:'20px'}}>expand_more</span>
+          </div>
+          {message && <span className="text-body-md text-error font-medium w-full sm:w-auto text-center sm:text-left">{message}</span>}
+        </div>
+        <button onClick={load} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm">
+          <span className="material-symbols-outlined" style={{fontSize:'20px'}}>refresh</span>
+          Refresh
+        </button>
       </div>
 
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-surface-container-low border-b border-outline-variant/10">
               <tr>
                 {['Identity', 'Cabinet Code', 'Compartments', 'Status', 'Last Seen', 'DB Lockers', 'Actions'].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-label-md text-on-surface-variant font-semibold">{h}</th>
+                  <th key={h} className="text-left px-5 py-4 text-label-md text-on-surface-variant font-bold whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
               {loading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant">Loading...</td></tr>
-              ) : data.cabinets.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant">No cabinets</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant font-medium">Loading...</td></tr>
+              ) : (!data.cabinets || data.cabinets.length === 0) ? (
+                <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant font-medium">No cabinets found.</td></tr>
               ) : data.cabinets.map((cabinet) => {
                 const isOffline = cabinet.status === 'APPROVED' && (!cabinet.lastSeenAt || (new Date() - new Date(cabinet.lastSeenAt) > 10000));
                 return (
-                  <tr key={cabinet.id} className={`hover:bg-surface-container-low transition-colors ${isOffline ? 'opacity-40 bg-surface-container-lowest select-none' : ''}`}>
-                    <td className="px-4 py-3 font-mono font-semibold text-primary">{cabinet.identity}</td>
-                    <td className="px-4 py-3 font-mono text-on-surface-variant">{cabinet.cabinetCode}</td>
-                    <td className="px-4 py-3 text-on-surface-variant">{cabinet.compartmentCount}</td>
-                    <td className="px-4 py-3"><CabinetBadge status={cabinet.status} isOffline={isOffline} /></td>
-                    <td className="px-4 py-3 text-on-surface-variant text-xs">{cabinet.lastSeenAt ? new Date(cabinet.lastSeenAt).toLocaleString() : '-'}</td>
-                    <td className="px-4 py-3 text-on-surface-variant">{cabinet._count?.lockers || 0}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
+                  <tr key={cabinet.id} className={`hover:bg-surface-container-low transition-colors ${isOffline ? 'opacity-50 bg-surface-container-lowest select-none' : ''}`}>
+                    <td className="px-5 py-3 font-mono font-bold text-primary">{cabinet.identity}</td>
+                    <td className="px-5 py-3 font-mono text-on-surface-variant font-medium">{cabinet.cabinetCode}</td>
+                    <td className="px-5 py-3 text-on-surface-variant font-medium">{cabinet.compartmentCount}</td>
+                    <td className="px-5 py-3"><CabinetBadge status={cabinet.status} isOffline={isOffline} /></td>
+                    <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{cabinet.lastSeenAt ? new Date(cabinet.lastSeenAt).toLocaleString() : '-'}</td>
+                    <td className="px-5 py-3 text-on-surface-variant font-medium">{cabinet._count?.lockers || 0}</td>
+                    <td className="px-5 py-3">
+                      <div className="flex flex-wrap gap-2">
                         {cabinet.status === 'APPROVED' && (
                           <>
                             <button onClick={() => update(cabinet.id, 'unlock_all')} disabled={busyId === cabinet.id || isOffline}
-                              className="px-3 py-1 rounded-lg bg-teal-100 text-teal-700 text-xs font-semibold hover:bg-teal-200 active:scale-95 transition-all disabled:opacity-50">
+                              className="px-3 py-1.5 rounded-lg bg-teal-100 text-teal-700 text-xs font-bold hover:bg-teal-200 active:scale-95 transition-all disabled:opacity-50">
                               Unlock All
                             </button>
                             <button onClick={() => update(cabinet.id, 'lock_all')} disabled={busyId === cabinet.id || isOffline}
-                              className="px-3 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50">
+                              className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-xs font-bold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50">
                               Lock All
                             </button>
                             <button onClick={() => setEditingZoneCabinet(cabinet)} disabled={busyId === cabinet.id || isOffline}
-                              className="px-3 py-1 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-semibold hover:bg-indigo-200 active:scale-95 transition-all disabled:opacity-50">
+                              className="px-3 py-1.5 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-bold hover:bg-indigo-200 active:scale-95 transition-all disabled:opacity-50">
                               Edit Zone
                             </button>
                           </>
                         )}
                         {cabinet.status !== 'APPROVED' && (
                           <button onClick={() => update(cabinet.id, 'approve')} disabled={busyId === cabinet.id}
-                            className="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50">
+                            className="px-3 py-1.5 rounded-lg bg-green-100 text-green-700 text-xs font-bold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50">
                             Approve
                           </button>
                         )}
                         {cabinet.status === 'PENDING' && (
                           <button onClick={() => update(cabinet.id, 'reject')} disabled={busyId === cabinet.id}
-                            className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50">
+                            className="px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50">
                             Reject
                           </button>
                         )}
                         <button onClick={() => setDeletingCabinet(cabinet)} disabled={busyId === cabinet.id}
-                          className="px-3 py-1 rounded-lg border border-outline-variant text-on-surface-variant text-xs font-semibold hover:bg-surface-container-low active:scale-95 transition-all disabled:opacity-50">
+                          className="px-3 py-1.5 rounded-lg border border-outline-variant/60 text-on-surface-variant text-xs font-bold hover:bg-surface-container-low hover:text-red-600 hover:border-red-200 active:scale-95 transition-all disabled:opacity-50">
                           Delete
                         </button>
                       </div>
@@ -182,7 +190,7 @@ export default function AdminCabinetsTab() {
             </tbody>
           </table>
         </div>
-        <div className="px-4 py-3 border-t border-outline-variant/10 text-label-md text-on-surface-variant">Total: {data.total} cabinets</div>
+        <div className="px-5 py-4 border-t border-outline-variant/10 text-label-md font-medium text-on-surface-variant bg-surface-container-low/30">Total: {data.total} cabinets</div>
       </div>
 
       <ConfirmDialog
