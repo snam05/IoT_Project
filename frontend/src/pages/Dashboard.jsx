@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import TopNavBar from '../components/TopNavBar';
 import AdminCabinetsTab from './AdminCabinetsTab';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -137,6 +137,7 @@ function LockersTab() {
   const [newFloor, setNewFloor] = useState('');
   const [floorUpdating, setFloorUpdating] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
 
   const handleUpdateFloor = async () => {
     if (!editingFloorLocker || newFloor === '') return;
@@ -208,8 +209,8 @@ function LockersTab() {
           <table className="w-full text-sm responsive-table table-lockers">
             <thead className="bg-surface-container-low border-b border-outline-variant/10">
               <tr>
-                {['Locker ID','Zone','Floor','Status','Assigned User','Locked At','Actions'].map(h=>(
-                  <th key={h} className="text-left px-5 py-4 text-label-md text-on-surface-variant font-bold whitespace-nowrap">{h}</th>
+                {['Locker ID','Zone','Floor','Status','Assigned User','Locked At','Actions'].map((h, i)=>(
+                  <th key={h} className={`text-left px-5 py-4 text-label-md text-on-surface-variant font-bold whitespace-nowrap ${i > 0 ? 'hidden lg:table-cell' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -221,13 +222,17 @@ function LockersTab() {
               ) : data.lockers.map(l => {
                 const isOffline = l.cabinet && (!l.cabinet.lastSeenAt || (new Date() - new Date(l.cabinet.lastSeenAt) > 10000));
                 return (
-                  <tr key={l.lockerId} className={`hover:bg-surface-container-low transition-colors ${isOffline ? 'opacity-40 bg-surface-container-lowest select-none' : ''}`}>
-                    <td className="px-5 py-3 font-mono font-bold text-primary">{formatLockerId(l)}</td>
-                    <td className="px-5 py-3 text-on-surface-variant font-medium">{l.zone}</td>
-                    <td className="px-5 py-3 text-on-surface-variant font-medium">
+                  <Fragment key={l.lockerId}>
+                  <tr onClick={() => setExpandedId(expandedId === l.lockerId ? null : l.lockerId)} className={`hover:bg-surface-container-low transition-colors cursor-pointer lg:cursor-default ${isOffline ? 'opacity-40 bg-surface-container-lowest select-none' : ''}`}>
+                    <td className="px-5 py-3 font-mono font-bold text-primary flex justify-between items-center lg:table-cell">
+                      <span>{formatLockerId(l)}</span>
+                      <span className="material-symbols-outlined lg:hidden text-on-surface-variant">{expandedId === l.lockerId ? 'expand_less' : 'expand_more'}</span>
+                    </td>
+                    <td className="hidden lg:table-cell px-5 py-3 text-on-surface-variant font-medium">{l.zone}</td>
+                    <td className="hidden lg:table-cell px-5 py-3 text-on-surface-variant font-medium">
                       <div className="flex items-center gap-1.5 group">
                         <span>{l.floor}</span>
-                        <button onClick={() => { if (!isOffline) { setEditingFloorLocker(l); setNewFloor(String(l.floor)); } }}
+                        <button onClick={(e) => { e.stopPropagation(); if (!isOffline) { setEditingFloorLocker(l); setNewFloor(String(l.floor)); } }}
                           disabled={isOffline}
                           title={isOffline ? "Cannot edit floor (offline)" : "Edit Floor"}
                           className={`p-1 rounded hover:bg-surface-container-high text-on-surface-variant/40 hover:text-primary active:scale-90 transition-all ${isOffline ? 'cursor-not-allowed opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
@@ -237,25 +242,25 @@ function LockersTab() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="hidden lg:table-cell px-5 py-3">
                       {isOffline ? (
                         <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-200 text-gray-600 border border-gray-300">OFFLINE</span>
                       ) : (
                         <Badge status={l.status}/>
                       )}
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="hidden lg:table-cell px-5 py-3">
                       {l.user?.role === 'ADMIN' ? (
                         <span className="text-red-600 font-bold">Admin</span>
                       ) : (
                         <span className="text-on-surface-variant font-medium">{l.user?.name || '—'}</span>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{l.lockedAt ? new Date(l.lockedAt).toLocaleString() : '—'}</td>
-                    <td className="px-5 py-3">
+                    <td className="hidden lg:table-cell px-5 py-3 text-on-surface-variant text-xs font-medium">{l.lockedAt ? new Date(l.lockedAt).toLocaleString() : '—'}</td>
+                    <td className="hidden lg:table-cell px-5 py-3">
                       <div className="flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden max-w-full pb-1 scrollbar-hide">
                         {l.status === 'IN_USE' && (
-                          <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', 'unlock')}
+                          <button onClick={(e) => { e.stopPropagation(); updateStatus(l.lockerId, 'AVAILABLE', 'unlock'); }}
                             disabled={actionLoading===l.lockerId || isOffline}
                             className="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                             Unlock
@@ -263,12 +268,12 @@ function LockersTab() {
                         )}
                         {l.status === 'AVAILABLE' && (
                           <>
-                            <button onClick={() => updateStatus(l.lockerId, 'IN_USE', 'lock')}
+                            <button onClick={(e) => { e.stopPropagation(); updateStatus(l.lockerId, 'IN_USE', 'lock'); }}
                               disabled={actionLoading===l.lockerId || isOffline}
                               className="px-3 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                               Lock
                             </button>
-                            <button onClick={() => updateStatus(l.lockerId, 'MAINTENANCE', null)}
+                            <button onClick={(e) => { e.stopPropagation(); updateStatus(l.lockerId, 'MAINTENANCE', null); }}
                               disabled={actionLoading===l.lockerId || isOffline}
                               className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                               Maintenance
@@ -276,7 +281,7 @@ function LockersTab() {
                           </>
                         )}
                         {l.status === 'MAINTENANCE' && (
-                          <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', null)}
+                          <button onClick={(e) => { e.stopPropagation(); updateStatus(l.lockerId, 'AVAILABLE', null); }}
                             disabled={actionLoading===l.lockerId || isOffline}
                             className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                             Restore
@@ -285,6 +290,36 @@ function LockersTab() {
                       </div>
                     </td>
                   </tr>
+                  {expandedId === l.lockerId && (
+                    <tr className="lg:hidden bg-surface-container-low/50">
+                      <td className="px-5 py-4 border-t border-outline-variant/10" colSpan={1}>
+                        <div className="flex flex-col gap-3">
+                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Status</span>{isOffline ? <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-200 text-gray-600 border border-gray-300">OFFLINE</span> : <Badge status={l.status}/>}</div>
+                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Zone</span><span className="font-medium text-sm">{l.zone}</span></div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-on-surface-variant font-bold uppercase">Floor</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{l.floor}</span>
+                              <button onClick={() => { if (!isOffline) { setEditingFloorLocker(l); setNewFloor(String(l.floor)); } }} disabled={isOffline} className="text-primary disabled:opacity-50 p-1"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Assigned User</span><span className="text-sm font-medium">{l.user?.role === 'ADMIN' ? <span className="text-red-600 font-bold">Admin</span> : l.user?.name || '—'}</span></div>
+                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Locked At</span><span className="text-xs font-medium">{l.lockedAt ? new Date(l.lockedAt).toLocaleString() : '—'}</span></div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {l.status === 'IN_USE' && <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', 'unlock')} disabled={actionLoading===l.lockerId || isOffline} className="flex-1 px-3 py-2 rounded-lg bg-green-100 text-green-700 text-xs font-bold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">Unlock</button>}
+                            {l.status === 'AVAILABLE' && (
+                              <>
+                                <button onClick={() => updateStatus(l.lockerId, 'IN_USE', 'lock')} disabled={actionLoading===l.lockerId || isOffline} className="flex-1 px-3 py-2 rounded-lg bg-amber-100 text-amber-700 text-xs font-bold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">Lock</button>
+                                <button onClick={() => updateStatus(l.lockerId, 'MAINTENANCE', null)} disabled={actionLoading===l.lockerId || isOffline} className="flex-1 px-3 py-2 rounded-lg bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">Maintenance</button>
+                              </>
+                            )}
+                            {l.status === 'MAINTENANCE' && <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', null)} disabled={actionLoading===l.lockerId || isOffline} className="w-full px-3 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-bold hover:bg-blue-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">Restore</button>}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -347,12 +382,13 @@ function UsersTab() {
   const [form, setForm] = useState({ username:'', email:'', name:'', password:'', role:'USER' });
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const [resetMsg, setResetMsg] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
 
   // Password reset state
   const [resettingUser, setResettingUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
-  const [resetMsg, setResetMsg] = useState('');
-  const [resetting, setResetting] = useState(false);
 
   // User deletion state
   const [deletingUser, setDeletingUser] = useState(null);
@@ -519,8 +555,8 @@ function UsersTab() {
           <table className="w-full text-sm responsive-table table-users">
             <thead className="bg-surface-container-low border-b border-outline-variant/10">
               <tr>
-                {['Name','Username','Email','Role','Status','Created','Actions'].map(h=>(
-                  <th key={h} className="text-left px-5 py-4 text-label-md text-on-surface-variant font-bold whitespace-nowrap">{h}</th>
+                {['Name','Username','Email','Role','Status','Created','Actions'].map((h, i)=>(
+                  <th key={h} className={`text-left px-5 py-4 text-label-md text-on-surface-variant font-bold whitespace-nowrap ${i > 0 ? 'hidden lg:table-cell' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -529,32 +565,36 @@ function UsersTab() {
                 (!data.users || data.users.length === 0) ? (
                   <tr><td colSpan={7} className="text-center py-8 text-on-surface-variant font-medium">No users found</td></tr>
                 ) : data.users.map(u => (
-                  <tr key={u.id} className="hover:bg-surface-container-low transition-colors">
-                    <td className="px-5 py-3 font-bold text-primary">{u.name}</td>
-                    <td className="px-5 py-3 font-mono text-on-surface-variant font-medium">{u.username}</td>
-                    <td className="px-5 py-3 text-on-surface-variant font-medium">{u.email}</td>
-                    <td className="px-5 py-3">
+                  <Fragment key={u.id}>
+                  <tr onClick={() => setExpandedId(expandedId === u.id ? null : u.id)} className="hover:bg-surface-container-low transition-colors cursor-pointer lg:cursor-default">
+                    <td className="px-5 py-3 font-bold text-primary flex justify-between items-center lg:table-cell">
+                      <span>{u.name}</span>
+                      <span className="material-symbols-outlined lg:hidden text-on-surface-variant">{expandedId === u.id ? 'expand_less' : 'expand_more'}</span>
+                    </td>
+                    <td className="hidden lg:table-cell px-5 py-3 font-mono text-on-surface-variant font-medium">{u.username}</td>
+                    <td className="hidden lg:table-cell px-5 py-3 text-on-surface-variant font-medium">{u.email}</td>
+                    <td className="hidden lg:table-cell px-5 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${u.role==='ADMIN'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'}`}>{u.role}</span>
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="hidden lg:table-cell px-5 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${u.isActive?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>
                         {u.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{new Date(u.createdAt).toLocaleDateString()}</td>
-                    <td className="px-5 py-3">
+                    <td className="hidden lg:table-cell px-5 py-3 text-on-surface-variant text-xs font-medium">{new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td className="hidden lg:table-cell px-5 py-3">
                       <div className="flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden max-w-full pb-1 scrollbar-hide">
-                        <button onClick={()=>toggleActive(u.id, u.isActive)}
+                        <button onClick={(e)=>{e.stopPropagation(); toggleActive(u.id, u.isActive);}}
                           disabled={u.id === currentUser?.id}
                           title={u.id === currentUser?.id ? "You cannot deactivate your own account" : ""}
                           className={`px-3 py-1 rounded-lg text-xs font-semibold active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap ${u.isActive?'bg-yellow-100 text-yellow-700 hover:bg-yellow-200':'bg-green-100 text-green-700 hover:bg-green-200'}`}>
                           {u.isActive ? 'Deactivate' : 'Activate'}
                         </button>
-                        <button onClick={()=>setResettingUser(u)}
+                        <button onClick={(e)=>{e.stopPropagation(); setResettingUser(u);}}
                           className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 active:scale-95 transition-all whitespace-nowrap">
                           Reset PW
                         </button>
-                        <button onClick={()=>setDeletingUser(u)}
+                        <button onClick={(e)=>{e.stopPropagation(); setDeletingUser(u);}}
                           disabled={u.id === currentUser?.id}
                           title={u.id === currentUser?.id ? "You cannot delete your own account" : ""}
                           className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
@@ -563,6 +603,25 @@ function UsersTab() {
                       </div>
                     </td>
                   </tr>
+                  {expandedId === u.id && (
+                    <tr className="lg:hidden bg-surface-container-low/50">
+                      <td className="px-5 py-4 border-t border-outline-variant/10" colSpan={1}>
+                        <div className="flex flex-col gap-3">
+                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Status</span><span className={`px-2 py-0.5 rounded-full text-xs font-bold ${u.isActive?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{u.isActive ? 'Active' : 'Inactive'}</span></div>
+                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Role</span><span className={`px-2 py-0.5 rounded-full text-xs font-bold ${u.role==='ADMIN'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'}`}>{u.role}</span></div>
+                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Username</span><span className="font-mono text-sm">{u.username}</span></div>
+                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Email</span><span className="text-sm font-medium break-all text-right ml-4">{u.email}</span></div>
+                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Created</span><span className="text-xs font-medium">{new Date(u.createdAt).toLocaleDateString()}</span></div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <button onClick={()=>toggleActive(u.id, u.isActive)} disabled={u.id === currentUser?.id} className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap ${u.isActive?'bg-yellow-100 text-yellow-700 hover:bg-yellow-200':'bg-green-100 text-green-700 hover:bg-green-200'}`}>{u.isActive ? 'Deactivate' : 'Activate'}</button>
+                            <button onClick={()=>setResettingUser(u)} className="flex-1 px-3 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 active:scale-95 transition-all whitespace-nowrap">Reset PW</button>
+                            <button onClick={()=>setDeletingUser(u)} disabled={u.id === currentUser?.id} className="w-full px-3 py-2 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">Delete</button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))
               }
             </tbody>
@@ -591,6 +650,7 @@ function LogTable({ endpoint, columns, rowFn, logTypeName, tableClassName }) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [inputPage, setInputPage] = useState('1');
+  const [expandedId, setExpandedId] = useState(null);
 
   // Filtering states
   const [search, setSearch] = useState('');
@@ -877,8 +937,8 @@ function LogTable({ endpoint, columns, rowFn, logTypeName, tableClassName }) {
           <table className={`w-full text-sm responsive-table ${tableClassName || ''}`}>
             <thead className="bg-surface-container-low border-b border-outline-variant/10">
               <tr>
-                {columns.map(c => (
-                  <th key={c} className="text-left px-5 py-4 text-label-md text-on-surface-variant font-bold whitespace-nowrap">{c}</th>
+                {columns.map((c, i) => (
+                  <th key={c} className={`text-left px-5 py-4 text-label-md text-on-surface-variant font-bold whitespace-nowrap ${i > 0 ? 'hidden lg:table-cell' : ''}`}>{c}</th>
                 ))}
               </tr>
             </thead>
@@ -888,7 +948,11 @@ function LogTable({ endpoint, columns, rowFn, logTypeName, tableClassName }) {
               ) : (!data.logs || data.logs.length === 0) ? (
                 <tr><td colSpan={columns.length} className="text-center py-8 text-on-surface-variant">No logs found matching filters.</td></tr>
               ) : (
-                data.logs.map((log, i) => <tr key={log.id || i} className="hover:bg-surface-container-low transition-colors">{rowFn(log)}</tr>)
+                data.logs.map((log, i) => (
+                  <Fragment key={log.id || i}>
+                    {rowFn(log, expandedId === log.id, () => setExpandedId(expandedId === log.id ? null : log.id))}
+                  </Fragment>
+                ))
               )}
             </tbody>
           </table>
@@ -1046,18 +1110,32 @@ export default function Dashboard() {
             logTypeName="Unlock Logs"
             tableClassName="table-logs-lockers"
             columns={['Time', 'Locker ID', 'Zone', 'User', 'Action', 'Method']}
-            rowFn={l => (
+            rowFn={(l, isExpanded, toggle) => (
               <>
-                <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{new Date(l.timestamp).toLocaleString()}</td>
-                <td className="px-5 py-3 font-mono font-bold text-primary">{formatLockerId(l.locker || l.lockerId)}</td>
-                <td className="px-5 py-3 text-on-surface-variant font-medium">{l.locker?.zone || '—'}</td>
-                <td className="px-5 py-3 text-on-surface-variant font-medium">{l.user?.name || 'Unknown'}</td>
-                <td className="px-5 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${l.action==='unlock'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'}`}>{l.action}</span>
-                </td>
-                <td className="px-5 py-3">
-                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">{l.method}</span>
-                </td>
+                <tr onClick={toggle} className="hover:bg-surface-container-low transition-colors cursor-pointer lg:cursor-default">
+                  <td className="px-5 py-3 text-on-surface-variant text-xs font-medium flex justify-between items-center lg:table-cell">
+                    <span>{new Date(l.timestamp).toLocaleString()}</span>
+                    <span className="material-symbols-outlined lg:hidden text-on-surface-variant">{isExpanded ? 'expand_less' : 'expand_more'}</span>
+                  </td>
+                  <td className="hidden lg:table-cell px-5 py-3 font-mono font-bold text-primary">{formatLockerId(l.locker || l.lockerId)}</td>
+                  <td className="hidden lg:table-cell px-5 py-3 text-on-surface-variant font-medium">{l.locker?.zone || '—'}</td>
+                  <td className="hidden lg:table-cell px-5 py-3 text-on-surface-variant font-medium">{l.user?.name || 'Unknown'}</td>
+                  <td className="hidden lg:table-cell px-5 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-bold ${l.action==='unlock'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'}`}>{l.action}</span></td>
+                  <td className="hidden lg:table-cell px-5 py-3"><span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">{l.method}</span></td>
+                </tr>
+                {isExpanded && (
+                  <tr className="lg:hidden bg-surface-container-low/50">
+                    <td className="px-5 py-4 border-t border-outline-variant/10" colSpan={1}>
+                      <div className="flex flex-col gap-3">
+                        <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Locker ID</span><span className="font-mono font-bold text-primary text-sm">{formatLockerId(l.locker || l.lockerId)}</span></div>
+                        <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Zone</span><span className="text-sm font-medium">{l.locker?.zone || '—'}</span></div>
+                        <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">User</span><span className="text-sm font-medium">{l.user?.name || 'Unknown'}</span></div>
+                        <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Action</span><span className={`px-2 py-0.5 rounded-full text-xs font-bold ${l.action==='unlock'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'}`}>{l.action}</span></div>
+                        <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Method</span><span className="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">{l.method}</span></div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </>
             )}
           />
@@ -1068,13 +1146,33 @@ export default function Dashboard() {
             logTypeName="System Logs"
             tableClassName="table-logs-system"
             columns={['Time', 'User', 'Action', 'Details', 'IP']}
-            rowFn={l => (
+            rowFn={(l, isExpanded, toggle) => (
               <>
-                <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{new Date(l.timestamp).toLocaleString()}</td>
-                <td className="px-5 py-3 text-on-surface-variant font-medium">{l.user?.username || 'System'}</td>
-                <td className="px-5 py-3"><span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container-high text-on-surface-variant">{l.action}</span></td>
-                <td className="px-5 py-3 text-on-surface-variant text-xs max-w-xs truncate font-medium">{l.details || '—'}</td>
-                <td className="px-5 py-3 font-mono text-on-surface-variant text-xs font-medium">{l.ipAddress || '—'}</td>
+                <tr onClick={toggle} className="hover:bg-surface-container-low transition-colors cursor-pointer lg:cursor-default">
+                  <td className="px-5 py-3 text-on-surface-variant text-xs font-medium flex justify-between items-center lg:table-cell">
+                    <span>{new Date(l.timestamp).toLocaleString()}</span>
+                    <span className="material-symbols-outlined lg:hidden text-on-surface-variant">{isExpanded ? 'expand_less' : 'expand_more'}</span>
+                  </td>
+                  <td className="hidden lg:table-cell px-5 py-3 text-on-surface-variant font-medium">{l.user?.username || 'System'}</td>
+                  <td className="hidden lg:table-cell px-5 py-3"><span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container-high text-on-surface-variant">{l.action}</span></td>
+                  <td className="hidden lg:table-cell px-5 py-3 text-on-surface-variant text-xs max-w-xs truncate font-medium" title={l.details}>{l.details || '—'}</td>
+                  <td className="hidden lg:table-cell px-5 py-3 font-mono text-on-surface-variant text-xs font-medium">{l.ipAddress || '—'}</td>
+                </tr>
+                {isExpanded && (
+                  <tr className="lg:hidden bg-surface-container-low/50">
+                    <td className="px-5 py-4 border-t border-outline-variant/10" colSpan={1}>
+                      <div className="flex flex-col gap-3">
+                        <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">User</span><span className="text-sm font-medium">{l.user?.username || 'System'}</span></div>
+                        <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Action</span><span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container-high text-on-surface-variant">{l.action}</span></div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-on-surface-variant font-bold uppercase">Details</span>
+                          <span className="text-sm text-on-surface-variant whitespace-pre-wrap bg-surface-container-lowest p-2 rounded-lg border border-outline-variant/10">{l.details || '—'}</span>
+                        </div>
+                        <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">IP</span><span className="font-mono text-sm">{l.ipAddress || '—'}</span></div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </>
             )}
           />
