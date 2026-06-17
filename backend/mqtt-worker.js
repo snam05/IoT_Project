@@ -79,24 +79,6 @@ export function startMqttWorker() {
   client.on('close', () => console.warn('[mqtt-worker] connection closed'));
   client.on('offline', () => console.warn('[mqtt-worker] offline'));
 
-  // Periodic ping task to approved cabinets to keep lastSeenAt fresh
-  setInterval(async () => {
-    try {
-      const cabinets = await prisma.cabinet.findMany({
-        where: { status: 'APPROVED' },
-        select: { cabinetCode: true },
-      });
-      for (const cab of cabinets) {
-        publish(TOPICS.cabinetCommand(cab.cabinetCode), {
-          action: 'ping',
-          msgId: `ping-${Date.now()}`
-        });
-      }
-    } catch (err) {
-      console.error('[mqtt-worker ping task error]', err.message);
-    }
-  }, 5000);
-
   return client;
 }
 

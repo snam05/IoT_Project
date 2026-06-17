@@ -37,7 +37,7 @@ PubSubClient mqtt(wifiClient);
 #define OLED_SCL 22
 SSD1306Wire display(0x3c, OLED_SDA, OLED_SCL);
 
-const unsigned long HELLO_INTERVAL = 15000;
+const unsigned long HELLO_INTERVAL = 5000;
 const unsigned long RECONNECT_INTERVAL = 3000;
 const unsigned long DISPLAY_REFRESH_INTERVAL = 1000;
 
@@ -291,7 +291,7 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
 
     if (newStatus == "APPROVED") {
       String secretKey = jsonValue(message, "secretKey");
-      if (secretKey.length() > 0 && secretKey != "null") {
+      if (secretKey.length() > 0 && secretKey != "null" && secretKey != totpSecret) {
         saveSecret(secretKey);
       }
       
@@ -317,11 +317,6 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
 
   if (topicStr == topicCommand()) {
     String action = jsonValue(message, "action");
-    if (action == "ping") {
-      Serial.println("[Ping] Received ping from server. Replying with hello...");
-      publishHello();
-      return;
-    }
 
     String msgId = jsonValue(message, "msgId");
     if (msgId.length() > 0 && msgId == lastProcessedMsgId) {
@@ -440,15 +435,12 @@ void loop() {
       cabinetStatus = "APPROVED";
     }
   } else {
-    if (mqtt.connected() && now - lastHello >= HELLO_INTERVAL && cabinetStatus != "APPROVED") {
+    if (mqtt.connected() && now - lastHello >= HELLO_INTERVAL) {
       publishHello();
     }
     
     if (cabinetStatus == "APPROVED") {
       if (totpSecret.length() == 0) {
-        if (now - lastHello >= HELLO_INTERVAL) {
-          publishHello();
-        }
         drawStatus("PENDING", "Waiting for secret key...");
       } else if (!isTimeSynced()) {
         drawStatus("NTP SYNC", "Syncing time...");
