@@ -149,37 +149,37 @@ export default function AdminCabinetsTab() {
                     <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{cabinet.lastSeenAt ? new Date(cabinet.lastSeenAt).toLocaleString() : '-'}</td>
                     <td className="px-5 py-3 text-on-surface-variant font-medium">{cabinet._count?.lockers || 0}</td>
                     <td className="px-5 py-3">
-                      <div className="flex flex-nowrap gap-2">
+                      <div className="flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden max-w-full pb-1 scrollbar-hide">
                         {cabinet.status === 'APPROVED' && (
                           <>
                             <button onClick={() => update(cabinet.id, 'unlock_all')} disabled={busyId === cabinet.id || isOffline}
-                              className="px-3 py-1.5 rounded-lg bg-teal-100 text-teal-700 text-xs font-bold hover:bg-teal-200 active:scale-95 transition-all disabled:opacity-50">
+                              className="px-3 py-1.5 rounded-lg bg-teal-100 text-teal-700 text-xs font-bold hover:bg-teal-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                               Unlock All
                             </button>
                             <button onClick={() => update(cabinet.id, 'lock_all')} disabled={busyId === cabinet.id || isOffline}
-                              className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-xs font-bold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50">
+                              className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-xs font-bold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                               Lock All
                             </button>
                             <button onClick={() => setEditingZoneCabinet(cabinet)} disabled={busyId === cabinet.id || isOffline}
-                              className="px-3 py-1.5 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-bold hover:bg-indigo-200 active:scale-95 transition-all disabled:opacity-50">
+                              className="px-3 py-1.5 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-bold hover:bg-indigo-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                               Edit Zone
                             </button>
                           </>
                         )}
                         {cabinet.status !== 'APPROVED' && (
                           <button onClick={() => update(cabinet.id, 'approve')} disabled={busyId === cabinet.id}
-                            className="px-3 py-1.5 rounded-lg bg-green-100 text-green-700 text-xs font-bold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50">
+                            className="px-3 py-1.5 rounded-lg bg-green-100 text-green-700 text-xs font-bold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                             Approve
                           </button>
                         )}
                         {cabinet.status === 'PENDING' && (
                           <button onClick={() => update(cabinet.id, 'reject')} disabled={busyId === cabinet.id}
-                            className="px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50">
+                            className="px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                             Reject
                           </button>
                         )}
                         <button onClick={() => setDeletingCabinet(cabinet)} disabled={busyId === cabinet.id}
-                          className="px-3 py-1.5 rounded-lg border border-outline-variant/60 text-on-surface-variant text-xs font-bold hover:bg-surface-container-low hover:text-red-600 hover:border-red-200 active:scale-95 transition-all disabled:opacity-50">
+                          className="px-3 py-1.5 rounded-lg border border-outline-variant/60 text-on-surface-variant text-xs font-bold hover:bg-surface-container-low hover:text-red-600 hover:border-red-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                           Delete
                         </button>
                       </div>

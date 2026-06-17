@@ -253,11 +253,11 @@ function LockersTab() {
                     </td>
                     <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{l.lockedAt ? new Date(l.lockedAt).toLocaleString() : '—'}</td>
                     <td className="px-5 py-3">
-                      <div className="flex gap-2">
+                      <div className="flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden max-w-full pb-1 scrollbar-hide">
                         {l.status === 'IN_USE' && (
                           <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', 'unlock')}
                             disabled={actionLoading===l.lockerId || isOffline}
-                            className="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50">
+                            className="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                             Unlock
                           </button>
                         )}
@@ -265,12 +265,12 @@ function LockersTab() {
                           <>
                             <button onClick={() => updateStatus(l.lockerId, 'IN_USE', 'lock')}
                               disabled={actionLoading===l.lockerId || isOffline}
-                              className="px-3 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50">
+                              className="px-3 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                               Lock
                             </button>
                             <button onClick={() => updateStatus(l.lockerId, 'MAINTENANCE', null)}
                               disabled={actionLoading===l.lockerId || isOffline}
-                              className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50">
+                              className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                               Maintenance
                             </button>
                           </>
@@ -278,7 +278,7 @@ function LockersTab() {
                         {l.status === 'MAINTENANCE' && (
                           <button onClick={() => updateStatus(l.lockerId, 'AVAILABLE', null)}
                             disabled={actionLoading===l.lockerId || isOffline}
-                            className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 active:scale-95 transition-all disabled:opacity-50">
+                            className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
                             Restore
                           </button>
                         )}
@@ -543,21 +543,21 @@ function UsersTab() {
                     </td>
                     <td className="px-5 py-3 text-on-surface-variant text-xs font-medium">{new Date(u.createdAt).toLocaleDateString()}</td>
                     <td className="px-5 py-3">
-                      <div className="flex flex-nowrap gap-2">
+                      <div className="flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden max-w-full pb-1 scrollbar-hide">
                         <button onClick={()=>toggleActive(u.id, u.isActive)}
                           disabled={u.id === currentUser?.id}
                           title={u.id === currentUser?.id ? "You cannot deactivate your own account" : ""}
-                          className={`px-3 py-1 rounded-lg text-xs font-semibold active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${u.isActive?'bg-yellow-100 text-yellow-700 hover:bg-yellow-200':'bg-green-100 text-green-700 hover:bg-green-200'}`}>
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap ${u.isActive?'bg-yellow-100 text-yellow-700 hover:bg-yellow-200':'bg-green-100 text-green-700 hover:bg-green-200'}`}>
                           {u.isActive ? 'Deactivate' : 'Activate'}
                         </button>
                         <button onClick={()=>setResettingUser(u)}
-                          className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 active:scale-95 transition-all">
+                          className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 active:scale-95 transition-all whitespace-nowrap">
                           Reset PW
                         </button>
                         <button onClick={()=>setDeletingUser(u)}
                           disabled={u.id === currentUser?.id}
                           title={u.id === currentUser?.id ? "You cannot delete your own account" : ""}
-                          className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                          className="px-3 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
                           Delete
                         </button>
                       </div>
