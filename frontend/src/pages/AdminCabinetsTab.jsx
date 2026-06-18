@@ -143,16 +143,16 @@ export default function AdminCabinetsTab() {
                 const isOffline = cabinet.status === 'APPROVED' && (!cabinet.lastSeenAt || (new Date() - new Date(cabinet.lastSeenAt) > 10000));
                 return (
                   <Fragment key={cabinet.id}>
-                  <tr onClick={() => setExpandedId(expandedId === cabinet.id ? null : cabinet.id)} className={`hover:bg-surface-container-low transition-colors cursor-pointer lg:cursor-default ${isOffline ? 'opacity-50 select-none' : ''}`}>
-                    <td className="px-5 py-4 font-mono font-bold text-primary flex justify-between items-center lg:table-cell">
+                  <tr onClick={() => setExpandedId(expandedId === cabinet.id ? null : cabinet.id)} className="hover:bg-surface-container-low transition-colors cursor-pointer lg:cursor-default">
+                    <td className={`px-5 py-4 font-mono font-bold text-primary flex justify-between items-center lg:table-cell ${isOffline ? 'opacity-50' : ''}`}>
                       <span>{cabinet.identity}</span>
                       <span className="material-symbols-outlined lg:hidden text-on-surface-variant">{expandedId === cabinet.id ? 'expand_less' : 'expand_more'}</span>
                     </td>
-                    <td className="hidden lg:table-cell px-5 py-3 font-mono text-on-surface-variant font-medium">{cabinet.cabinetCode}</td>
-                    <td className="hidden lg:table-cell px-5 py-3 text-on-surface-variant font-medium">{cabinet.compartmentCount}</td>
+                    <td className={`hidden lg:table-cell px-5 py-3 font-mono text-on-surface-variant font-medium ${isOffline ? 'opacity-50' : ''}`}>{cabinet.cabinetCode}</td>
+                    <td className={`hidden lg:table-cell px-5 py-3 text-on-surface-variant font-medium ${isOffline ? 'opacity-50' : ''}`}>{cabinet.compartmentCount}</td>
                     <td className="hidden lg:table-cell px-5 py-3"><CabinetBadge status={cabinet.status} isOffline={isOffline} /></td>
-                    <td className="hidden lg:table-cell px-5 py-3 text-on-surface-variant text-xs font-medium">{cabinet.lastSeenAt ? new Date(cabinet.lastSeenAt).toLocaleString() : '-'}</td>
-                    <td className="hidden lg:table-cell px-5 py-3 text-on-surface-variant font-medium">{cabinet._count?.lockers || 0}</td>
+                    <td className={`hidden lg:table-cell px-5 py-3 text-on-surface-variant text-xs font-medium ${isOffline ? 'opacity-50' : ''}`}>{cabinet.lastSeenAt ? new Date(cabinet.lastSeenAt).toLocaleString() : '-'}</td>
+                    <td className={`hidden lg:table-cell px-5 py-3 text-on-surface-variant font-medium ${isOffline ? 'opacity-50' : ''}`}>{cabinet._count?.lockers || 0}</td>
                     <td className="hidden lg:table-cell px-5 py-3">
                       <div className="flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden max-w-full pb-1 scrollbar-hide">
                         {cabinet.status === 'APPROVED' && (
@@ -194,11 +194,11 @@ export default function AdminCabinetsTab() {
                     <tr className="lg:hidden bg-surface-container-low/50">
                       <td className="px-5 py-4 border-t border-outline-variant/10" colSpan={1}>
                         <div className="flex flex-col gap-3">
-                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Status</span><CabinetBadge status={cabinet.status} isOffline={isOffline} /></div>
-                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Cabinet Code</span><span className="font-mono text-sm">{cabinet.cabinetCode}</span></div>
-                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Compartments</span><span className="text-sm font-medium">{cabinet.compartmentCount}</span></div>
-                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">DB Lockers</span><span className="text-sm font-medium">{cabinet._count?.lockers || 0}</span></div>
-                          <div className="flex justify-between items-center"><span className="text-xs text-on-surface-variant font-bold uppercase">Last Seen</span><span className="text-xs font-medium">{cabinet.lastSeenAt ? new Date(cabinet.lastSeenAt).toLocaleString() : '-'}</span></div>
+                          <div className={`flex justify-between items-center ${isOffline ? 'opacity-50' : ''}`}><span className="text-xs text-on-surface-variant font-bold uppercase">Status</span><CabinetBadge status={cabinet.status} isOffline={isOffline} /></div>
+                          <div className={`flex justify-between items-center ${isOffline ? 'opacity-50' : ''}`}><span className="text-xs text-on-surface-variant font-bold uppercase">Cabinet Code</span><span className="font-mono text-sm">{cabinet.cabinetCode}</span></div>
+                          <div className={`flex justify-between items-center ${isOffline ? 'opacity-50' : ''}`}><span className="text-xs text-on-surface-variant font-bold uppercase">Compartments</span><span className="text-sm font-medium">{cabinet.compartmentCount}</span></div>
+                          <div className={`flex justify-between items-center ${isOffline ? 'opacity-50' : ''}`}><span className="text-xs text-on-surface-variant font-bold uppercase">DB Lockers</span><span className="text-sm font-medium">{cabinet._count?.lockers || 0}</span></div>
+                          <div className={`flex justify-between items-center ${isOffline ? 'opacity-50' : ''}`}><span className="text-xs text-on-surface-variant font-bold uppercase">Last Seen</span><span className="text-xs font-medium">{cabinet.lastSeenAt ? new Date(cabinet.lastSeenAt).toLocaleString() : '-'}</span></div>
                           <div className="mt-2 flex flex-wrap gap-2">
                             {cabinet.status === 'APPROVED' && (
                               <>

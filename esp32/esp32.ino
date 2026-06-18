@@ -18,8 +18,8 @@
 #include "qrcode.h"
 
 // ── Deployment config ─────────────────────────────────────────
-const char* WIFI_SSID = "CON CHO BAT MANG LAM CHO";
-const char* WIFI_PASSWORD = "20052005";
+const char* WIFI_SSID = "snam._.05";
+const char* WIFI_PASSWORD = "Password@123";
 
 const char* MQTT_HOST = "13.229.56.194";
 const int MQTT_PORT = 1883;
