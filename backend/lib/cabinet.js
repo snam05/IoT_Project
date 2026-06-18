@@ -78,7 +78,7 @@ export async function recordCabinetHello(input) {
       cabinet: existing,
       receivedIdentity,
       expectedIdentity: existing.identity,
-      message: 'Compartment count differs. Admin must delete, then reset the ESP32.',
+      message: 'Compartment count differs. Please recreate.',
     };
   }
 
