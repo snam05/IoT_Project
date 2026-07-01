@@ -52,3 +52,5 @@ npm run db:push
 ```
 
 The backend process also starts the MQTT worker by default. Set `MQTT_WORKER_ENABLED=false` only when running a separate MQTT worker process.
+
+feat: CI/CD test 

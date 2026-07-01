@@ -27,7 +27,7 @@ const char* MQTT_USERNAME = "iot_user";
 const char* MQTT_PASSWORD = "Iotuser@123";
 
 const char* CABINET_CODE = "BACH_KHOA"; // manually assigned unique cabinet code
-const int COMPARTMENT_COUNT = 9;        // compartments are numbered 1..N
+const int COMPARTMENT_COUNT = 8;        // compartments are numbered 1..N
 const int LOCK_PINS[COMPARTMENT_COUNT] = {15, 2, 4, 16, 17, 5, 18, 19};
 
 WiFiClient wifiClient;
